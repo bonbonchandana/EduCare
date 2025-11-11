@@ -1,0 +1,54 @@
+/* Electric glow theme for login forms: cinematic charged border + input/button glow */
+:root{
+  --elec-purple: #8b5cf6;
+  --elec-teal: #06b6d4;
+  --elec-orange:#ffb86b;
+  --elec-green:#34d399;
+}
+
+/* card glow (outer blurred gradient that slowly rotates) */
+.card.electric{position:relative;z-index:0}
+.card.electric::before{
+  content:'';position:absolute;left:-6px;top:-6px;right:-6px;bottom:-6px;border-radius:inherit;z-index:0;
+  background: conic-gradient(from 0deg, rgba(139,92,246,0.95), rgba(6,182,212,0.9), rgba(255,184,107,0.9), rgba(52,211,153,0.95));
+  filter: blur(20px) saturate(140%);opacity:0.95;mix-blend-mode:screen;pointer-events:none;transform:scale(1);
+  animation: elec-rotate 6s linear infinite, elec-pulse 3s ease-in-out infinite;
+}
+
+/* inner overlay to mask the center so only border appears glowing */
+.card.electric::after{
+  content:'';position:absolute;left:3px;top:3px;right:3px;bottom:3px;border-radius:inherit;background:rgba(255,255,255,0.96);z-index:1;pointer-events:none;
+}
+
+.card.electric .card-content{position:relative;z-index:2}
+
+@keyframes elec-rotate{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+@keyframes elec-pulse{0%{opacity:0.85;filter:blur(18px)}50%{opacity:1;filter:blur(8px)}100%{opacity:0.85;filter:blur(18px)}}
+
+/* Electric accents for title, inputs, and button */
+.card.electric h2{position:relative;z-index:2;text-shadow:0 6px 30px rgba(139,92,246,0.16);}
+.card.electric input, .card.electric button{
+  position:relative;z-index:2;border-radius:10px;box-shadow:0 8px 30px rgba(139,92,246,0.06);transition:box-shadow .35s, transform .18s;
+}
+
+/* animated electric glow for inputs — subtle moving gradient and flicker */
+.card.electric input{border:1px solid rgba(230,237,243,0.8);padding:12px;background:linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,250,255,0.95));}
+.card.electric input::placeholder{color:#9aa4b2}
+.card.electric input:focus{outline:none;box-shadow:0 12px 40px rgba(99,102,241,0.12), 0 0 18px rgba(123,47,247,0.18);transform:translateY(-2px)}
+
+/* sign-in button with electric sheen */
+.card.electric button{background:linear-gradient(90deg, rgba(123,47,247,1), rgba(6,182,212,0.95));color:#fff;border:none;padding:12px 14px;font-weight:700}
+.card.electric button:hover{box-shadow:0 18px 60px rgba(99,102,241,0.18), 0 0 30px rgba(6,182,212,0.12);transform:translateY(-2px)}
+
+/* cinematic continuous glow overlay on the icon/text inside button */
+.card.electric button::after{content:'';position:absolute;left:0;right:0;top:0;bottom:0;border-radius:10px;pointer-events:none;z-index:0;mix-blend-mode:screen}
+.card.electric .role-icon, .card.electric .logo-icon{filter:drop-shadow(0 8px 30px rgba(123,47,247,0.18));transition:filter .4s, transform .4s}
+
+/* small electric sparks — created by JS for dynamic effect */
+.elec-spark{position:absolute;width:6px;height:6px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,1),rgba(255,255,255,0.2));box-shadow:0 0 18px rgba(255,255,255,0.9);pointer-events:none;z-index:3;opacity:0}
+
+/* Respect reduced motion: keep static soft glow only */
+@media (prefers-reduced-motion: reduce){
+  .card.electric::before{animation:none;filter:blur(12px)}
+  .elec-spark{display:none}
+}

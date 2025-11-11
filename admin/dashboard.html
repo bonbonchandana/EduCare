@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EduCare | Admin Dashboard</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script type="module" src="./educare-data-firebase.js"></script>
+<script type="module" src="../firebase/firebase-init.js"></script>
+<script src="../firebase/firestore-sync.js"></script>
+
+<style>
+:root{
+--gradA:#673ab7; --gradB:#512da8; --bg:#eef2ff; --card:#fff; --muted:#6b7280;
+--cta:#7b2ff7; --cta2:#f107a3;
+}
+*{box-sizing:border-box}
+body{margin:0;display:flex;min-height:100vh;background:linear-gradient(180deg,#f7fbff,#eef2ff);font-family:'Poppins',sans-serif}
+
+/* sidebar */
+.sidebar{width:260px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:24px 14px;display:flex;flex-direction:column}
+.brand{font-weight:700;font-size:22px;text-align:center;margin-bottom:16px}
+.nav a{display:block;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;margin:6px 6px;transition:.2s}
+.nav a:hover,.nav a.active{background:rgba(255,255,255,.12)}
+
+/* main */
+.main{flex:1;padding:28px;overflow:auto;position:relative}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;position:relative;z-index:2}
+header h1{margin:0;font-size:22px}
+
+/* cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin:18px 0;position:relative;z-index:2}
+.card{background:linear-gradient(180deg,#fff,#fbfbff);border-radius:20px;padding:18px;box-shadow:0 16px 40px rgba(99,102,241,0.06);cursor:pointer;transition:transform .2s,box-shadow .2s}
+.card:hover{transform:translateY(-8px);box-shadow:0 28px 60px rgba(99,102,241,0.12)}
+.card h3{margin:0 0 10px;font-size:14px;color:var(--muted)}
+.card .value{font-weight:800;font-size:28px;color:#2b2b7a}
+.card small{display:block;color:#6b7280;margin-top:6px}
+
+/* modal */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);align-items:center;justify-content:center;z-index:60}
+.modal.open{display:flex}
+.panel{background:#fff;border-radius:14px;padding:18px;max-width:1000px;width:95%;max-height:86vh;overflow:auto}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{padding:8px;text-align:left;border-bottom:1px solid #f3f4f6}
+.muted{color:var(--muted)}
+</style>
+  <link rel="stylesheet" href="admin-theme.css">
+</head>
+
+<body>
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="brand">EduCare</div>
+  <nav class="nav">
+    <a class="active" href="dashboard.html">Dashboard</a>
+    <a href="user-management.html">User Management</a>
+    <a href="analytics.html">Analytics</a>
+    <a href="settings.html">Settings</a>
+  </nav>
+</aside>
+
+<!-- Main -->
+<main class="main">
+<header>
+  <h1>Admin Dashboard</h1>
+  <div id="greeting">Welcome, Admin 👋</div>
+</header>
+
+<section class="cards" id="dashboardCards">
+  <div class="card" onclick="openDashboardPanel('students')"><h3>Total Students</h3><div class="value" id="totalStudents">0</div><small>Click to view list</small></div>
+  <div class="card" onclick="openDashboardPanel('highRisk')"><h3>High Risk</h3><div class="value" id="highRisk">0</div><small>Click to view</small></div>
+  <div class="card" onclick="openDashboardPanel('sessions')"><h3>Counseling Sessions</h3><div class="value" id="sessions">0</div><small>Click to view</small></div>
+  <div class="card" onclick="openDashboardPanel('counselors')"><h3>Active Counselors</h3><div class="value" id="counselors">0</div><small>Click to view</small></div>
+</section>
+
+<canvas id="riskChart"></canvas>
+
+<!-- Panel Modal -->
+<div id="panelModal" class="modal">
+  <div class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h2 id="panelTitle">Panel</h2>
+      <div style="display:flex;gap:8px">
+        <button onclick="exportPanel()" id="exportPanelBtn" class="btn" style="padding:6px 10px;background:#10b981;color:#fff;border-radius:8px">Export</button>
+        <button onclick="closePanel()">Close</button>
+      </div>
+    </div>
+    <div id="panelContent"></div>
+    <canvas id="panelChart"></canvas>
+  </div>
+</div>
+</main>
+
+<script src="admin.js"></script>
+<script src="admin-theme.js"></script>
+<script src="/assets/chatbot.js"></script>
+
+<script>
+function getStore(){ try{ return EduCareAdmin.getStore(); }catch(e){ return null; } }
+
+function renderStats(){
+  const store = getStore(); if(!store) return;
+  const students = store.users?.students || [];
+  const counselors = store.users?.counselors || [];
+  const sessions = store.sessions || [];
+
+  document.getElementById('totalStudents').textContent = students.length;
+  document.getElementById('highRisk').textContent = students.filter(s=>s.risk==='High').length;
+  document.getElementById('sessions').textContent = sessions.length;
+  document.getElementById('counselors').textContent = counselors.length;
+}
+
+let __panelChart=null;
+function closePanel(){document.getElementById('panelModal').classList.remove('open'); if(__panelChart) __panelChart.destroy();}
+function openDashboardPanel(kind){
+  const modal=document.getElementById('panelModal');
+  const title=document.getElementById('panelTitle');
+  const content=document.getElementById('panelContent');
+  const store=getStore(); const students=store.users?.students||[]; const counselors=store.users?.counselors||[]; const sessions=store.sessions||[];
+
+  title.textContent = kind==="students"?"All Students":kind==="highRisk"?"High Risk Students":kind==="sessions"?"Counseling Sessions":"Active Counselors";
+
+  /* same table logic preserved */
+  if(kind==="students"||kind==="highRisk"){
+    const rows = kind==="students"?students:students.filter(s=>s.risk==="High");
+    if(!rows.length){content.innerHTML="<div class='muted'>No data</div>";modal.classList.add('open');return;}
+
+    let html="<table><thead><tr><th>Name</th><th>PIN</th><th>Attendance</th><th>CGPA</th><th>Stress</th><th>Dropout%</th><th>Risk</th></tr></thead><tbody>";
+    rows.forEach(s=>{
+      const dp = (typeof s.dropoutProb === 'number') ? (s.dropoutProb * 100).toFixed(1) + '%' : '-';
+      html+=`<tr><td>${s.name}</td><td>${s.pin}</td><td>${s.attendance}</td><td>${s.cgpa}</td><td>${s.stress}</td><td>${dp}</td><td>${s.risk||'-'}</td></tr>`;
+    });
+    html+="</tbody></table>";
+    content.innerHTML = html;
+  }
+
+  // counseling sessions panel
+  if(kind==="sessions"){
+    if(!sessions || !sessions.length){
+      content.innerHTML = "<div class='muted'>No counseling sessions recorded</div>";
+    } else {
+      let html = '<table><thead><tr><th>Date</th><th>Student</th><th>Counselor</th><th>Notes</th><th>Outcome</th></tr></thead><tbody>';
+      sessions.slice().reverse().forEach(ses => {
+        const studentId = ses.studentId || (ses.student && ses.student.id) || ses.student_id || null;
+        const counselorId = ses.counselorId || (ses.counselor && ses.counselor.id) || ses.counselor_id || null;
+        const st = studentId ? (EduCareAdmin.getById('students', studentId) || { name: '(unknown)' }) : (ses.student || { name: ses.studentName || '(unknown)' });
+        const co = counselorId ? (EduCareAdmin.getById('counselors', counselorId) || { name: '(unknown)' }) : (ses.counselor || { name: ses.counselorName || '(unknown)' });
+        let d = '';
+        try { d = ses.date ? new Date(ses.date).toLocaleString() : (ses.createdAt ? new Date(ses.createdAt).toLocaleString() : ''); } catch(e){ d = ses.date || ''; }
+        html += `<tr><td>${d}</td><td>${st.name}</td><td>${co.name}</td><td>${ses.notes||''}</td><td>${ses.outcome||''}</td></tr>`;
+      });
+      html += '</tbody></table>';
+      content.innerHTML = html;
+
+      // chart: sessions per counselor
+      const counts = {};
+      sessions.forEach(ses => {
+        const cid = ses.counselorId || (ses.counselor && ses.counselor.id) || ses.counselor_id || null;
+        if (cid) counts[cid] = (counts[cid] || 0) + 1;
+      });
+      const labels = Object.keys(counts).map(id => { const c = EduCareAdmin.getById('counselors', id); return c ? c.name : id; });
+      const vals = Object.keys(counts).map(id => counts[id]);
+      const ctx = document.getElementById('panelChart').getContext('2d');
+      if(__panelChart) __panelChart.destroy();
+      __panelChart = new Chart(ctx, { type: 'bar', data: { labels, datasets:[{ label:'Sessions', data: vals, backgroundColor:'#03a9f4' }]}, options:{plugins:{legend:{display:false}}, responsive:true} });
+    }
+  }
+
+  // active counselors panel
+  if(kind==="counselors"){
+    if(!counselors || !counselors.length){
+      content.innerHTML = "<div class='muted'>No counselors found</div>";
+    } else {
+      // compute assigned student counts using both counselor.students array and student.counselorId
+      const studentsByCounselor = {};
+      students.forEach(s => { if(s.counselorId) studentsByCounselor[s.counselorId] = (studentsByCounselor[s.counselorId]||0) + 1; });
+      let html = '<table><thead><tr><th>Counselor</th><th>Email</th><th>Assigned Students</th></tr></thead><tbody>';
+      counselors.forEach(c => {
+        const byArr = Array.isArray(c.students)? c.students.length : 0;
+        const byCount = studentsByCounselor[c.id] || 0;
+        const total = Math.max(byArr, byCount);
+        html += `<tr><td>${c.name}</td><td>${c.email||''}</td><td>${total}</td></tr>`;
+      });
+      html += '</tbody></table>';
+      content.innerHTML = html;
+
+      // chart: counselors workload
+      const labels = counselors.map(c => c.name);
+      const vals = counselors.map(c => { const byArr = Array.isArray(c.students)? c.students.length : 0; const byCount = studentsByCounselor[c.id] || 0; return Math.max(byArr, byCount); });
+      const ctx2 = document.getElementById('panelChart').getContext('2d');
+      if(__panelChart) __panelChart.destroy();
+      __panelChart = new Chart(ctx2, { type: 'horizontalBar' in Chart? 'horizontalBar' : 'bar', data:{ labels, datasets:[{ label:'Assigned Students', data: vals, backgroundColor:'#34d399' }]}, options:{plugins:{legend:{display:false}}, responsive:true} });
+    }
+  }
+
+  modal.classList.add('open');
+}
+
+function exportCSV(filename, headers, rows){
+  const csv = [headers.join(',')].concat(rows.map(r => headers.map(h => {
+    const v = r[h]===undefined || r[h]===null ? '' : String(r[h]);
+    return '"' + v.replace(/"/g,'""') + '"';
+  }).join(','))).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+}
+
+function exportPanel(){
+  const title = document.getElementById('panelTitle').textContent || '';
+  // determine which panel is open by title
+  const kind = title.toLowerCase().includes('students') ? (title.toLowerCase().includes('high') ? 'highRisk' : 'students') : (title.toLowerCase().includes('session') ? 'sessions' : 'counselors');
+  const store = getStore(); if(!store) return alert('No data');
+  const students = store.users?.students || [];
+  const counselors = store.users?.counselors || [];
+  const sessions = store.sessions || [];
+
+  if(kind==='students' || kind==='highRisk'){
+    const rows = (kind==='students'? students : students.filter(s=>s.risk==='High'));
+    const headers = ['id','name','pin','attendance','cgpa','stress','dropoutProb','risk','parentId','counselorId'];
+    const out = rows.map(s=>({ id:s.id, name:s.name, pin:s.pin, attendance:s.attendance, cgpa:s.cgpa, stress:s.stress, dropoutProb: s.dropoutProb ?? '', risk: s.risk, parentId: s.parentId||'', counselorId: s.counselorId||'' }));
+    exportCSV(`panel_${kind}_${new Date().toISOString().split('T')[0]}.csv`, headers, out);
+    return;
+  }
+
+  if(kind==='sessions'){
+    const rows = sessions.slice().reverse().map(ses=>{
+      const st = EduCareAdmin.getById('students', ses.studentId) || { name: '' };
+      const co = EduCareAdmin.getById('counselors', ses.counselorId) || { name: '' };
+      return { id: ses.id, date: ses.date, studentId: ses.studentId||'', studentName: st.name||'', counselorId: ses.counselorId||'', counselorName: co.name||'', notes: ses.notes||'', outcome: ses.outcome||'' };
+    });
+    const headers = ['id','date','studentId','studentName','counselorId','counselorName','notes','outcome'];
+    exportCSV(`panel_sessions_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
+    return;
+  }
+
+  if(kind==='counselors'){
+    const studentsByCounselor = {};
+    students.forEach(s => { if(s.counselorId) studentsByCounselor[s.counselorId] = (studentsByCounselor[s.counselorId]||0) + 1; });
+    const rows = counselors.map(c => ({ id: c.id, name: c.name, email: c.email||'', assignedStudents: Math.max(Array.isArray(c.students)? c.students.length : 0, studentsByCounselor[c.id]||0) }));
+    const headers = ['id','name','email','assignedStudents'];
+    exportCSV(`panel_counselors_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
+    return;
+  }
+}
+
+renderStats();
+if(window.EduCareAdmin?.onStoreUpdated) EduCareAdmin.onStoreUpdated(renderStats);
+</script>
+</body>
+</html>

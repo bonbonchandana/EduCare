@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Counselor • Counseling & Feedback</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="counselor-sidebar.css" />
+  <script type="module" src="../admin/educare-data-firebase.js"></script>
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <style>
+    :root{--gradA:#0ea5e9;--gradB:#7c3aed;--bg:#f5f7fb;--card:#fff;--muted:#6b7280}
+    *{box-sizing:border-box}
+    body{margin:0;display:flex;min-height:100vh;background:var(--bg);font-family:'Poppins',sans-serif}
+    .sidebar{width:240px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:22px 12px;display:flex;flex-direction:column}
+    .brand{font-weight:600;font-size:20px;text-align:center;margin-bottom:16px}
+    .nav a{display:block;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;margin:6px 6px;transition:.2s}
+    .nav a:hover,.nav a.active{background:rgba(255,255,255,.2)}
+    .main{flex:1;padding:24px;overflow:auto}
+    h1{margin-top:0}
+    table{width:100%;border-collapse:collapse;margin-top:20px;background:var(--card);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+    th,td{padding:12px;text-align:left;border-bottom:1px solid #f1f5f9}
+    th{background:#f3f4f6;font-weight:600}
+    tr:last-child td{border:none}
+    button{padding:8px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff;cursor:pointer;font-size:13px}
+    .secondary{background:#9ca3af;color:#fff}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+    .modal.open{display:flex}
+    .box{background:#fff;border-radius:16px;padding:20px;max-width:520px;width:100%;box-shadow:0 10px 24px rgba(0,0,0,.2)}
+    textarea,input[type=datetime-local],select{width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin-top:6px}
+    .row{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;background:#eef2ff;color:#0b61ff}
+    .badge.completed{background:#ecfdf5;color:#047857}
+  </style>
+  <link rel="stylesheet" href="counselor-sidebar.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <div style="padding:8px 6px;color:#fff">
+      <button id="notifToggle" style="background:transparent;border:none;color:#fff;cursor:pointer">🔔 <span id="notifCount" style="background:#ef4444;padding:2px 6px;border-radius:999px;font-size:12px;margin-left:6px;display:inline-block">0</span></button>
+      <div id="notifPanel" style="display:none;background:#fff;color:#111;padding:8px;border-radius:8px;margin-top:8px;position:relative;z-index:60;max-height:260px;overflow:auto"></div>
+    </div>
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="students.html">Students</a>
+      <a href="risk-view.html">AI Risk View</a>
+      <a class="active" href="counseling.html">Counseling & Feedback</a>
+      <a href="hobbies.html">Hobbies</a>
+      <a href="chat.html">Communication</a>
+      <a href="reports.html">Reports & Analytics</a>
+      <a href="profile.html">Profile</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <h1>Counseling Sessions</h1>
+    <p style="color:#6b7280">Record and track all counseling sessions with your assigned students.</p>
+    <div style="text-align:right;margin-bottom:10px;">
+      <button id="addBtn">+ New Session</button>
+      <button id="manageBtn" class="secondary" style="margin-left:8px">Manage Session</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Student</th>
+          <th>Date</th>
+          <th>Notes</th>
+          <th>Objective</th>
+          <th>Outcome</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </main>
+
+  <!-- Modal -->
+  <div class="modal" id="sessionModal">
+    <div class="box">
+      <h2 id="modalTitle">New Counseling Session</h2>
+      <div class="field">
+        <label for="studentSelect">Select Student</label>
+        <select id="studentSelect"></select>
+      </div>
+      <div class="field">
+        <label for="sessionDate">Date & Time</label>
+        <input type="datetime-local" id="sessionDate" />
+      </div>
+      <div class="field">
+        <label for="sessionNotes">Session Notes</label>
+        <textarea id="sessionNotes" rows="4" placeholder="Enter discussion points..."></textarea>
+      </div>
+      <div class="field">
+        <label for="sessionFiles">Attach files (optional)</label>
+        <input type="file" id="sessionFiles" multiple />
+      </div>
+      <div class="field">
+        <label for="sessionObjective">Objective</label>
+        <textarea id="sessionObjective" rows="3" placeholder="Enter session objective / goals..."></textarea>
+      </div>
+      <div class="field">
+        <label for="meetingLink">Meeting Link (optional)</label>
+        <input type="url" id="meetingLink" placeholder="https://meet.example.com/abc-123" />
+      </div>
+      <div class="row">
+        <button class="secondary" id="cancelBtn">Cancel</button>
+        <button id="saveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../admin/admin.js"></script>
+  <script src="counselor.js"></script>
+  <script>
+    const tbody = document.getElementById('tbody');
+    const modal = document.getElementById('sessionModal');
+    const addBtn = document.getElementById('addBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const studentSelect = document.getElementById('studentSelect');
+    const sessionDate = document.getElementById('sessionDate');
+    const sessionNotes = document.getElementById('sessionNotes');
+    const sessionObjective = document.getElementById('sessionObjective');
+    const sessionFiles = document.getElementById('sessionFiles');
+  const meetingLink = document.getElementById('meetingLink');
+  const modalTitle = document.getElementById('modalTitle');
+
+  // small helper
+  function escapeHtml(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    let editId = null;
+
+    function render() {
+      const counselor = EduCareCounselor.getCurrentCounselor();
+      if (!counselor) return;
+      const sessions = EduCareCounselor.getSessionsForCounselor();
+      const students = EduCareCounselor.getAssignedStudents();
+
+      tbody.innerHTML = sessions.map(se=>{
+        const st = EduCareAdmin.getById('students', se.studentId);
+        return `<tr>
+          <td>${st?.name || 'Unknown'}${se.completed ? ' <span class="badge completed">Completed</span>' : ''}</td>
+          <td>${new Date(se.date).toLocaleString()}</td>
+            <td>${se.notes || '-'}</td>
+            <td>${se.objective || '-'}</td>
+            <td>${se.outcome || '-'}</td>
+          <td>
+            <button onclick="editSession('${se.id}')">Edit</button>
+            <button class='secondary' onclick="viewSessionReplies('${se.id}')" style="margin-left:6px">View Replies</button>
+            <button class='secondary' onclick="deleteSession('${se.id}')" style="margin-left:6px">Delete</button>
+          </td>
+        </tr>`;
+      }).join('') || '<tr><td colspan=\"5\" style=\"color:#6b7280;padding:16px\">No counseling sessions recorded yet.</td></tr>';
+    }
+
+    // Fill students dropdown
+    function fillStudents() {
+      const list = EduCareCounselor.getAssignedStudents();
+      studentSelect.innerHTML = list.map(s=>`<option value=\"${s.id}\">${s.name}</option>`).join('');
+    }
+
+    addBtn.onclick = ()=>{
+      editId = null;
+      fillStudents();
+      modalTitle.textContent = 'New Counseling Session';
+      sessionDate.value = '';
+      sessionNotes.value = '';
+      sessionObjective.value = '';
+      modal.classList.add('open');
+    };
+
+    cancelBtn.onclick = ()=> modal.classList.remove('open');
+
+    // read files into assignment-like objects (data URLs)
+    function readFilesAsAssignments(fileList){
+      const files = Array.from(fileList||[]);
+      return Promise.all(files.map(f=>new Promise((resolve,reject)=>{
+        const r = new FileReader();
+        r.onload = ()=> resolve({ id: 'assign_' + Math.random().toString(36).slice(2,9), title: f.name, name: f.name, dataUrl: r.result, uploadedAt: new Date().toISOString(), replies: [] });
+        r.onerror = (e)=> reject(e);
+        r.readAsDataURL(f);
+      })));
+    }
+
+    saveBtn.onclick = async ()=>{
+      const sid = studentSelect.value;
+      const date = sessionDate.value;
+      const notes = sessionNotes.value;
+      const objective = sessionObjective.value;
+      const link = meetingLink.value;
+      const files = sessionFiles && sessionFiles.files ? sessionFiles.files : null;
+      if (!sid || !date){ alert('Select student and date!'); return; }
+
+      try{
+        const assignments = files && files.length ? await readFilesAsAssignments(files) : [];
+
+        if (editId){
+          const s = EduCareAdmin.getStore();
+          const idx = s.sessions.findIndex(x=>x.id===editId);
+          if (idx>=0){
+            s.sessions[idx].assignments = s.sessions[idx].assignments || [];
+            if(assignments.length) s.sessions[idx].assignments.push(...assignments);
+            // do not overwrite outcome here; only update objective
+            s.sessions[idx] = { ...s.sessions[idx], studentId: sid, date, notes, objective, meetingLink: link, replies: s.sessions[idx].replies || [] };
+            EduCareAdmin.setStore(s);
+            // notify student/parent about session update (edited)
+            try{
+              const session = s.sessions[idx];
+              const student = (s.users && s.users.students||[]).find(st=>st.id===session.studentId);
+              const parent = student && (s.users && s.users.parents||[]).find(p=>p.id===student.parentId);
+              const cid = session.counselorId;
+              const now = new Date().toISOString();
+              const nid = 'notif_' + Math.random().toString(36).slice(2,9);
+              const title = 'Session updated';
+              const message = `Session updated by counselor for ${new Date(session.date).toLocaleString()}.`;
+              if(link) message += ` Meeting link: ${link}`;
+              const notif = { id:nid, type:'session_updated', title, message, sessionId: session.id, at: now, from: cid, read:false };
+              if(student){ student.notifications = student.notifications || []; student.notifications.push(notif); }
+              if(parent){ parent.notifications = parent.notifications || []; parent.notifications.push(notif); }
+              const counselor = (s.users && s.users.counselors||[]).find(c=>c.id===cid);
+              if(counselor){ counselor.notifications = counselor.notifications || []; counselor.notifications.push(Object.assign({}, notif, { receivedByCounselor:true })); }
+              EduCareAdmin.setStore(s);
+            }catch(e){/*ignore*/}
+          }
+        } else {
+          // Create a new session with objective, attach assignments
+          const counselorId = EduCareCounselor.getCurrentCounselorId();
+          const created = EduCareAdmin.addSession({ studentId: sid, counselorId, date, notes, outcome: '' });
+          const store = EduCareAdmin.getStore();
+          const idx = (store.sessions||[]).findIndex(x=>x.id===created.id);
+          if(idx!==-1){
+            store.sessions[idx].objective = objective;
+            store.sessions[idx].meetingLink = link;
+            store.sessions[idx].assignments = store.sessions[idx].assignments || [];
+            if(assignments.length) store.sessions[idx].assignments.push(...assignments);
+            store.sessions[idx].replies = store.sessions[idx].replies || [];
+            EduCareAdmin.setStore(store);
+
+            // notify student & parent that a session has been scheduled
+            try{
+              const student = (store.users && store.users.students||[]).find(st=>st.id===sid);
+              const parent = student && (store.users && store.users.parents||[]).find(p=>p.id===student.parentId);
+              const cid = counselorId;
+              const now = new Date().toISOString();
+              const nid = 'notif_' + Math.random().toString(36).slice(2,9);
+              const title = 'New counseling session scheduled';
+              let message = `Session scheduled by counselor on ${new Date(store.sessions[idx].date).toLocaleString()}. Objective: ${store.sessions[idx].objective || '-'}.`;
+              if(assignments.length) message += ` Attachments: ${assignments.map(a=>a.name).join(', ')}`;
+              if(link) message += ` Meeting link: ${link}`;
+              const notif = { id:nid, type:'session_scheduled', title, message, sessionId: store.sessions[idx].id, at: now, from: cid, read:false };
+              if(student){ student.notifications = student.notifications || []; student.notifications.push(notif); }
+              if(parent){ parent.notifications = parent.notifications || []; parent.notifications.push(notif); }
+              const counselor = (store.users && store.users.counselors||[]).find(c=>c.id===cid);
+              if(counselor){ counselor.notifications = counselor.notifications || []; counselor.notifications.push(Object.assign({}, notif, { receivedByCounselor:true })); }
+              EduCareAdmin.setStore(store);
+            }catch(e){/* fail silently */}
+          }
+        }
+      }catch(e){ console.error('save session failed', e); alert('Failed to save session: '+(e && e.message)); }
+
+      modal.classList.remove('open');
+      render();
+    };
+
+    window.editSession = (id)=>{
+      const s = EduCareAdmin.getStore().sessions.find(x=>x.id===id);
+      if (!s) return;
+      editId = id;
+      fillStudents();
+      studentSelect.value = s.studentId;
+      sessionDate.value = s.date.slice(0,16);
+      sessionNotes.value = s.notes;
+      sessionObjective.value = s.objective || '';
+      modalTitle.textContent = 'Edit Counseling Session';
+      modal.classList.add('open');
+    };
+
+    window.deleteSession = (id)=>{
+      if (!confirm('Delete this session?')) return;
+      const store = EduCareAdmin.getStore();
+      store.sessions = store.sessions.filter(s=>s.id!==id);
+      EduCareAdmin.setStore(store);
+      render();
+    };
+
+    // --- Manage Session Modal (outcome, assignments, replies) ---
+    const manageModalHtml = `
+    <div class="modal" id="manageModal">
+      <div class="box">
+        <h2>Manage Session Outcome & Assignments</h2>
+        <div class="field">
+          <label for="manageSessionSelect">Select Session</label>
+          <select id="manageSessionSelect"></select>
+        </div>
+        <div class="field">
+          <label for="manageOutcome">Outcome</label>
+          <textarea id="manageOutcome" rows="3" placeholder="Add outcome for this session"></textarea>
+        </div>
+        <div class="field">
+          <label for="manageMarks">Marks (optional)</label>
+          <input id="manageMarks" type="number" min="0" placeholder="Enter marks for this session" />
+        </div>
+        <div class="field">
+          <label>Assignments & Student Replies</label>
+          <div id="manageAssignmentsList" style="max-height:220px;overflow:auto;border:1px solid #f1f5f9;padding:8px;border-radius:8px"></div>
+        </div>
+        <div class="field">
+          <label for="manageNoteFile">Upload Counselor Notes (PDF/DOC)</label>
+          <input id="manageNoteFile" type="file" accept=".pdf,.doc,.docx,.txt" />
+        </div>
+        <div class="row">
+          <button class="secondary" id="manageCancel">Cancel</button>
+          <button id="manageSave">Save & Notify</button>
+          <button id="manageComplete" class="secondary" style="margin-left:8px">Mark Completed</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', manageModalHtml);
+
+    const manageModal = document.getElementById('manageModal');
+    const manageBtn = document.getElementById('manageBtn');
+    const manageCancel = document.getElementById('manageCancel');
+    const manageSave = document.getElementById('manageSave');
+    const manageComplete = document.getElementById('manageComplete');
+    const manageSessionSelect = document.getElementById('manageSessionSelect');
+  const manageOutcome = document.getElementById('manageOutcome');
+  const manageMarks = document.getElementById('manageMarks');
+  const manageAssignmentsList = document.getElementById('manageAssignmentsList');
+    const manageNoteFile = document.getElementById('manageNoteFile');
+
+    // helper: read single file as dataUrl
+    function readFileAsDataUrl(file){
+      return new Promise((resolve,reject)=>{
+        if(!file) return resolve(null);
+        const r = new FileReader();
+        r.onload = ()=> resolve({ name: file.name, dataUrl: r.result, uploadedAt: new Date().toISOString() });
+        r.onerror = (e)=> reject(e);
+        r.readAsDataURL(file);
+      });
+    }
+
+    function fillManageSessions(){
+      const sessions = EduCareCounselor.getSessionsForCounselor();
+      manageSessionSelect.innerHTML = sessions.map(s=>`<option value="${s.id}">${(EduCareAdmin.getById('students', s.studentId)||{}).name||s.studentId} — ${new Date(s.date).toLocaleString()}</option>`).join('');
+      // set current outcome/marks and render assignments for selected session
+      const sid = manageSessionSelect.value;
+      if(sid){
+        const s = (EduCareAdmin.getStore().sessions||[]).find(x=>x.id===sid) || {};
+        manageOutcome.value = s.outcome || '';
+        manageMarks.value = s.marks || '';
+        renderManageAssignments();
+      } else {
+        manageAssignmentsList.innerHTML = '<div style="color:#6b7280">No session selected</div>';
+      }
+    }
+
+    // resilient manage button handler (with error reporting)
+    try{
+      manageBtn.addEventListener('click', ()=>{
+        try{
+          fillManageSessions();
+          if(!manageModal) return alert('Manage modal not available');
+          manageModal.classList.add('open');
+          document.body.classList.add('modal-open');
+        }catch(e){
+          console.error('manageBtn click failed', e);
+          alert('Failed to open Manage Session: ' + (e && e.message));
+        }
+      });
+    }catch(e){
+      // fallback
+      manageBtn.onclick = ()=>{ fillManageSessions(); manageModal && manageModal.classList.add('open'); document.body.classList.add('modal-open'); };
+    }
+    manageCancel.onclick = ()=>{ manageModal.classList.remove('open'); document.body.classList.remove('modal-open'); };
+
+    manageSessionSelect.addEventListener('change', ()=>{
+      const sid = manageSessionSelect.value;
+      const s = (EduCareAdmin.getStore().sessions||[]).find(x=>x.id===sid) || {};
+      manageOutcome.value = s.outcome || '';
+      manageMarks.value = s.marks || '';
+      renderManageAssignments();
+    });
+
+    // Mark selected session as completed
+    manageComplete && (manageComplete.onclick = ()=>{
+      try{
+        const sid = manageSessionSelect.value;
+        if(!sid) return alert('Select a session');
+        const store = EduCareAdmin.getStore();
+        const idx = (store.sessions||[]).findIndex(x=>x.id===sid);
+        if(idx===-1) return alert('Session not found');
+  store.sessions[idx].completed = true;
+  store.sessions[idx].completedAt = new Date().toISOString();
+  // remove meeting link once session is completed
+  try{ delete store.sessions[idx].meetingLink; }catch(e){}
+        // notify student/parent/counselor
+        const session = store.sessions[idx];
+        const student = (store.users && store.users.students||[]).find(st=>st.id===session.studentId);
+        const parent = student && (store.users && store.users.parents||[]).find(p=>p.id===student.parentId);
+        const counselor = (store.users && store.users.counselors||[]).find(c=>c.id===session.counselorId);
+        const nid = 'notif_' + Math.random().toString(36).slice(2,9);
+        const now = new Date().toISOString();
+        const title = 'Session completed';
+        const message = `${(counselor && counselor.name)||'Counselor'} marked the session on ${new Date(session.date).toLocaleString()} as completed.`;
+        const notif = { id: nid, type: 'session_completed', title, message, sessionId: session.id, at: now, from: session.counselorId, read:false };
+        if(student){ student.notifications = student.notifications || []; student.notifications.push(notif); }
+        if(parent){ parent.notifications = parent.notifications || []; parent.notifications.push(notif); }
+        if(counselor){ counselor.notifications = counselor.notifications || []; counselor.notifications.push(Object.assign({}, notif, { receivedByCounselor:true })); }
+        EduCareAdmin.setStore(store);
+        render(); renderManageAssignments();
+        alert('Session marked completed and notifications sent.');
+      }catch(e){ console.error('mark complete failed', e); alert('Failed to mark completed: '+(e && e.message)); }
+    });
+
+    // Open the Manage modal focused on a specific session so counselor can view replies/files
+    window.viewSessionReplies = function(sessionId){
+      try{
+        fillManageSessions();
+        // set selected session and render its assignments/replies
+        if(manageSessionSelect){
+          manageSessionSelect.value = sessionId;
+          manageOutcome.value = '';
+          manageMarks.value = '';
+          renderManageAssignments();
+        }
+        if(manageModal){ manageModal.classList.add('open'); document.body.classList.add('modal-open'); }
+      }catch(e){ console.error('viewSessionReplies failed', e); alert('Failed to open session replies: '+(e && e.message)); }
+    };
+
+    function renderManageAssignments(){
+      const sid = manageSessionSelect.value;
+      if(!sid) { manageAssignmentsList.innerHTML = '<div style="color:#6b7280">No session selected</div>'; return; }
+      const s = (EduCareAdmin.getStore().sessions||[]).find(x=>x.id===sid) || { assignments: [], replies: [] };
+      const list = s.assignments || [];
+
+      // Build assignments HTML (if any)
+      let assignmentsHtml = '';
+      if(!list.length){
+        assignmentsHtml = '<div style="color:#6b7280">No assignments</div>';
+      } else {
+        assignmentsHtml = list.map(a=>{
+          const replies = (a.replies||[]).map(r=>{
+            const fileLink = r.file && r.file.dataUrl ? `<div style="margin-top:6px"><a href="${r.file.dataUrl}" download="${r.file.name}">Download reply: ${r.file.name}</a></div>` : '';
+            return `<div style="padding:8px;border-top:1px dashed #eef2ff;margin-top:6px"><strong>Reply by ${r.from}</strong> <span style="color:#6b7280;font-size:12px">${new Date(r.at).toLocaleString()}</span><div>${r.text? r.text : ''}</div>${fileLink}</div>`;
+          }).join('');
+          return `<div style="padding:8px;border-bottom:1px solid #f1f5f9"><strong>${a.title||a.name}</strong><div style="font-size:12px;color:#6b7280">Uploaded: ${new Date(a.uploadedAt).toLocaleString()}</div>${replies}</div>`;
+        }).join('');
+      }
+
+      // Build session-level replies HTML (if any)
+      const sessionReplies = (s.replies||[]);
+      let sessionRepliesHtml = '';
+      if(!sessionReplies.length){
+        sessionRepliesHtml = '<div style="color:#6b7280;margin-top:8px">No session replies</div>';
+      } else {
+        sessionRepliesHtml = sessionReplies.map(r=>{
+          const fileLink = r.file && r.file.dataUrl ? `<div style="margin-top:6px"><a href="${r.file.dataUrl}" download="${r.file.name}">Download reply: ${r.file.name}</a></div>` : '';
+          return `<div style="padding:8px;border-top:1px dashed #eef2ff;margin-top:6px"><strong>Reply by ${r.from}</strong> <span style="color:#6b7280;font-size:12px">${new Date(r.at).toLocaleString()}</span><div>${r.text? r.text : ''}</div>${fileLink}</div>`;
+        }).join('');
+      }
+
+      // also show any counselor-uploaded note documents
+      const noteDocs = (s.noteDocuments||[]);
+      let noteDocsHtml = '';
+      if(!noteDocs.length) noteDocsHtml = '<div style="color:#6b7280;margin-top:8px">No counselor notes uploaded</div>';
+      else noteDocsHtml = noteDocs.map(d=>`<div style="padding:8px;border-top:1px dashed #e6fffa"><a href="${d.dataUrl}" download="${d.name}">Download counselor note: ${d.name}</a> <div style="font-size:12px;color:#6b7280">Uploaded: ${new Date(d.uploadedAt).toLocaleString()}</div></div>`).join('');
+
+      manageAssignmentsList.innerHTML = `<div><strong>Assignments</strong><div style="margin-top:6px">${assignmentsHtml}</div></div><div style="margin-top:10px"><strong>Session Replies</strong><div style="margin-top:6px">${sessionRepliesHtml}</div></div><div style="margin-top:10px"><strong>Counselor Notes</strong><div style="margin-top:6px">${noteDocsHtml}</div></div>`;
+      
+      // Feedback section
+      try{
+        const feedbacks = s.feedbacks || [];
+        const FEEDBACK_QUESTIONS = [
+          { id: 'q1', text: 'Was the session helpful?', options: ['Very helpful','Somewhat helpful','Not helpful'] },
+          { id: 'q2', text: 'Was the counselor clear and supportive?', options: ['Yes, very','Somewhat','Not really'] },
+          { id: 'q3', text: 'Would you recommend similar sessions?', options: ['Yes','Maybe','No'] }
+        ];
+
+        let feedbackListHtml = '';
+        if(!feedbacks.length){
+          feedbackListHtml = '<div style="color:#6b7280;margin-top:8px">No feedback submitted yet</div>';
+        } else {
+          feedbackListHtml = feedbacks.map(f=>{
+            const student = EduCareAdmin.getById('students', f.studentId) || { name: f.studentId };
+            const answersHtml = Object.keys(f.answers||{}).map(k=>`<div style="font-size:13px;margin-top:6px"><strong>${k}:</strong> ${escapeHtml(f.answers[k]||'')}</div>`).join('');
+            return `<div style="padding:8px;border-top:1px dashed #eef2ff;margin-top:6px"><strong>${escapeHtml(student.name)}</strong> <span style="color:#6b7280;font-size:12px">${new Date(f.at).toLocaleString()}</span><div style="margin-top:6px">${answersHtml}</div><div style="margin-top:6px;color:#374151">${escapeHtml(f.comments||'')}</div></div>`;
+          }).join('');
+        }
+
+        // aggregate counts for chart
+        const agg = {};
+        FEEDBACK_QUESTIONS.forEach(q=>{ agg[q.id] = {}; q.options.forEach(o=> agg[q.id][o]=0); });
+        feedbacks.forEach(f=>{
+          FEEDBACK_QUESTIONS.forEach(q=>{
+            const ans = f.answers && f.answers[q.id];
+            if(ans && typeof agg[q.id][ans] !== 'undefined') agg[q.id][ans]++;
+          });
+        });
+
+        // build simple bar chart HTML
+        const chartHtml = FEEDBACK_QUESTIONS.map(q=>{
+          const counts = agg[q.id];
+          const total = Object.values(counts).reduce((a,b)=>a+b,0) || 1;
+          const bars = Object.keys(counts).map(opt=>{
+            const pct = Math.round((counts[opt]/total)*100);
+            return `<div style="margin-top:6px"><div style="font-size:13px">${escapeHtml(opt)} — ${counts[opt]} (${pct}%)</div><div style="background:#f1f5f9;border-radius:6px;height:12px;margin-top:4px"><div style="width:${pct}% ;background:linear-gradient(90deg,#7b2ff7,#f107a3);height:100%;border-radius:6px"></div></div></div>`;
+          }).join('');
+          return `<div style="margin-top:10px"><strong>${escapeHtml(q.text)}</strong>${bars}</div>`;
+        }).join('');
+
+        // append feedback section
+        manageAssignmentsList.insertAdjacentHTML('beforeend', `<div style="margin-top:12px"><strong>Student Feedback</strong><div style="margin-top:6px">${feedbackListHtml}</div><div style="margin-top:8px">${chartHtml}</div></div>`);
+      }catch(e){ console.warn('render feedback failed', e); }
+    }
+
+    manageSave.onclick = async ()=>{
+      try{
+      const sid = manageSessionSelect.value;
+      if(!sid) return alert('Select a session');
+      const store = EduCareAdmin.getStore();
+      const idx = (store.sessions||[]).findIndex(x=>x.id===sid);
+      if(idx===-1) return alert('Session not found');
+      const outcomeText = manageOutcome.value.trim();
+      const marksVal = manageMarks.value ? parseInt(manageMarks.value,10) : null;
+      store.sessions[idx].outcome = outcomeText;
+      if(marksVal !== null && !isNaN(marksVal)) store.sessions[idx].marks = marksVal;
+      store.sessions[idx].updatedAt = new Date().toISOString();
+
+      // handle counselor-uploaded note document (optional)
+      try{
+        if(manageNoteFile && manageNoteFile.files && manageNoteFile.files.length){
+          store.sessions[idx].noteDocuments = store.sessions[idx].noteDocuments || [];
+          const f = manageNoteFile.files[0];
+          const doc = await readFileAsDataUrl(f);
+          if(doc) store.sessions[idx].noteDocuments.push(doc);
+        }
+      }catch(e){ console.warn('note doc upload failed', e); }
+
+      // Build a simple notification object and append to student, parent, and counselor records
+      const session = store.sessions[idx];
+      const student = (store.users && store.users.students||[]).find(st=>st.id===session.studentId);
+      const parent = student && (store.users && store.users.parents||[]).find(p=>p.id===student.parentId);
+      const counselor = (store.users && store.users.counselors||[]).find(c=>c.id===session.counselorId);
+      const now = new Date().toISOString();
+      const nid = 'notif_' + Math.random().toString(36).slice(2,9);
+      const title = 'Session updated';
+      let message = `${(counselor && counselor.name)||'Counselor'} updated the outcome for your session on ${new Date(session.date).toLocaleString()}: ${outcomeText}`;
+      if(typeof store.sessions[idx].marks !== 'undefined') message += ` — Marks: ${store.sessions[idx].marks}`;
+      if(store.sessions[idx].noteDocuments && store.sessions[idx].noteDocuments.length) message += ` — Counselor uploaded notes: ${store.sessions[idx].noteDocuments.map(d=>d.name).join(', ')}`;
+
+      const notif = { id: nid, type: 'session_update', title, message, sessionId: session.id, at: now, from: session.counselorId, read: false };
+
+      // ensure notifications arrays exist and push
+      if(student){ student.notifications = student.notifications || []; student.notifications.push(notif); }
+      if(parent){ parent.notifications = parent.notifications || []; parent.notifications.push(notif); }
+      if(counselor){ counselor.notifications = counselor.notifications || []; counselor.notifications.push(Object.assign({}, notif, { receivedByCounselor: true })); }
+
+      EduCareAdmin.setStore(store);
+      render();
+      renderManageAssignments();
+      alert('Outcome, marks and notes saved; notifications dispatched to student/parent (prototype).');
+      }catch(e){
+        console.error('manageSave failed', e);
+        alert('Save failed: ' + (e && e.message));
+      }
+    };
+
+    if (EduCareCounselor.ensureCounselorSelected()) render();
+    else window.addEventListener('counselor-ready', render, {once:true});
+    EduCareAdmin.onStoreUpdated(render);
+
+    // --- Notifications UI (counselor) ---
+    const notifToggleBtn = document.getElementById('notifToggle');
+    const notifPanelElem = document.getElementById('notifPanel');
+    const notifCountEl = document.getElementById('notifCount');
+
+    function renderNotifications(){
+      const me = EduCareCounselor.getCurrentCounselor();
+      if(!me) return;
+      const store = EduCareAdmin.getStore();
+      const my = (store.users && store.users.counselors||[]).find(c=>c.id===me.id) || {};
+      const notes = my.notifications || [];
+      const unread = notes.filter(n=>!n.read).length;
+      notifCountEl.textContent = unread || 0;
+      notifPanelElem.innerHTML = notes.length ? notes.map(n=>`<div style="padding:8px;border-bottom:1px solid #f1f5f9"><strong>${n.title}</strong><div style="font-size:12px;color:#6b7280">${new Date(n.at).toLocaleString()}</div><div style="margin-top:6px">${n.message}</div><div style="text-align:right;margin-top:6px"><button onclick="markNotifReadCounselor('${n.id}')">Mark read</button></div></div>`).join('') : '<div style="color:#6b7280">No notifications</div>';
+    }
+
+    window.markNotifReadCounselor = function(id){
+      const store = EduCareAdmin.getStore();
+      if(!store) return;
+      const me = EduCareCounselor.getCurrentCounselor();
+      if(me){
+        const c = (store.users && store.users.counselors||[]).find(x=>x.id===me.id);
+        if(c && c.notifications){ const ni = c.notifications.find(x=>x.id===id); if(ni) ni.read = true; }
+      }
+      EduCareAdmin.setStore(store);
+      render(); renderNotifications();
+    };
+
+    notifToggleBtn && notifToggleBtn.addEventListener('click', ()=>{ notifPanelElem.style.display = notifPanelElem.style.display === 'none' ? 'block' : 'none'; });
+    EduCareAdmin.onStoreUpdated(renderNotifications);
+    renderNotifications();
+  </script>
+  
+</body>
+</html>

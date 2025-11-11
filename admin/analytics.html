@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Admin • Analytics & Reports</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    // local-only helper (uses EduCareAdmin store)
+    function loadStudents(){
+      try{
+        const students = window.EduCareAdmin ? window.EduCareAdmin.list('students') : [];
+        const grid = document.getElementById('studentGrid'); if(!grid) return;
+        grid.innerHTML = students.map(s=>`<div class="card"><div class="name">${s.name}</div><div class="meta">PIN: ${s.pin||'-'} | CGPA: ${s.cgpa??'-'}</div><button onclick="showStudent('${s.id}')">View</button></div>`).join('');
+      }catch(e){console.warn('loadStudents failed', e)}
+    }
+    function showStudent(id){ try{ const st = window.EduCareAdmin ? window.EduCareAdmin.getById('students', id) : null; }catch(e){} }
+    function createSession(p){ if(window.EduCareAdmin) window.EduCareAdmin.addSession(p); }
+    function updateCounselor(id,p){ if(window.EduCareAdmin) window.EduCareAdmin.update('counselors', id, p); }
+    loadStudents();
+  </script>
+
+  <div id="studentGrid"></div>
+
+  <style>
+    :root{--gradA:#673ab7;--gradB:#512da8;--bg:#f5f7fb;--card:#fff;}
+    *{box-sizing:border-box}
+    body{margin:0;display:flex;min-height:100vh;background:var(--bg);font-family:'Poppins',sans-serif}
+    .sidebar{width:240px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:22px 12px;display:flex;flex-direction:column}
+    .brand{font-weight:600;font-size:22px;text-align:center;margin-bottom:16px}
+    .nav a{display:block;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;margin:6px 6px;transition:.2s}
+    .nav a:hover,.nav a.active{background:rgba(255,255,255,.2)}
+    .main{flex:1;padding:24px;overflow:auto}
+    h1{margin-top:0}
+    .chartBox{background:#fff;border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:18px;margin-bottom:22px}
+    canvas{width:100%!important;max-height:380px}
+    button{padding:10px 16px;border:none;border-radius:10px;background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff;cursor:pointer;margin-top:6px}
+  </style>
+  <link rel="stylesheet" href="admin-theme.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="user-management.html">User Management</a>
+      <a class="active" href="analytics.html">Analytics</a>
+      <a href="settings.html">Settings</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <h1>Analytics & Reports</h1>
+    <p style="color:#6b7280;margin-bottom:20px">
+      View system trends and generate downloadable reports for performance, attendance, and risk distribution.
+    </p>
+
+    <div class="chartBox">
+      <h3>Student Risk Distribution</h3>
+      <canvas id="riskChart"></canvas>
+    </div>
+
+    <div class="chartBox">
+      <h3>Performance vs Attendance Trends</h3>
+      <canvas id="performanceChart"></canvas>
+    </div>
+
+    <div style="text-align:right">
+      <button id="exportBtn">Download PDF Report</button>
+    </div>
+  </main>
+
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <script src="admin.js"></script>
+  <script src="admin-theme.js"></script>
+  <script>
+    // --- Risk Distribution Chart ---
+    const dist = EduCareAdmin.riskDistribution();
+    const riskCtx = document.getElementById('riskChart');
+    const riskChart = new Chart(riskCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Low','Medium','High'],
+        datasets: [{ data: [dist.Low||0, dist.Medium||0, dist.High||0],
+          backgroundColor: ['#22c55e','#facc15','#ef4444'] }]
+      },
+      options:{plugins:{legend:{position:'bottom'}}}
+    });
+
+    // --- Performance Chart (Monthly trend) ---
+    const store = EduCareAdmin.getStore();
+    const perfCtx = document.getElementById('performanceChart');
+    const perfChart = new Chart(perfCtx, {
+      type: 'bar',
+      data: {
+        labels: ['Jan','Feb','Mar','Apr','May','Jun'],
+        datasets: [
+          {label:'Average Performance %', data: store.analytics.monthly, backgroundColor:'#7b2ff7'},
+          {label:'Attendance %', data: store.analytics.attendance, backgroundColor:'#03a9f4'}
+        ]
+      },
+      options:{plugins:{legend:{position:'bottom'}}}
+    });
+
+    // --- Export PDF ---
+    document.getElementById('exportBtn').addEventListener('click', ()=>{
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p','pt','a4');
+      pdf.setFont('Helvetica','bold');
+      pdf.text('EduCare Analytics Report', 40, 40);
+      pdf.setFont('Helvetica','normal');
+      pdf.text(`Generated: ${new Date().toLocaleString()}`, 40, 60);
+
+      const s = EduCareAdmin.getStore();
+      const total = s.users.students.length;
+      const high = s.users.students.filter(st=>st.risk==='High').length;
+      const med = s.users.students.filter(st=>st.risk==='Medium').length;
+      const low = total - high - med;
+      pdf.text(`Total Students: ${total}`,40,90);
+      pdf.text(`High Risk: ${high}`,40,110);
+      pdf.text(`Medium Risk: ${med}`,40,130);
+      pdf.text(`Low Risk: ${low}`,40,150);
+
+      pdf.text('Performance Chart and Risk Chart are visual representations and not embedded here.',40,180);
+      pdf.save('EduCare_Report.pdf');
+    });
+  </script>
+</body>
+</html>

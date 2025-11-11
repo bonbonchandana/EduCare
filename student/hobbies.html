@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EduCare | Student • Hobbies & Interests</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../parent/parent-theme.css" />
+  <style>
+    :root{--gradA:#14b8a6;--gradB:#3b82f6;--bg:#f7fafc;--card:#fff;--muted:#6b7280}
+    *{box-sizing:border-box}
+    body{margin:0;display:flex;min-height:100vh;background:var(--bg);font-family:'Poppins',sans-serif}
+    .sidebar{width:220px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:18px 12px;display:flex;flex-direction:column}
+    .brand{font-weight:600;font-size:20px;text-align:center;margin-bottom:12px}
+    .nav a{display:block;color:#fff;text-decoration:none;padding:8px 12px;border-radius:10px;margin:6px 6px}
+    .main{flex:1;padding:22px;overflow:auto}
+    .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 8px 28px rgba(2,6,23,.06);margin-bottom:16px}
+    .hobby-list{display:flex;flex-direction:column;gap:10px}
+    .hobby{border:1px solid #eef2f6;padding:12px;border-radius:10px;background:#fff}
+    .muted{color:var(--muted)}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;font-size:12px;background:#eef2ff;color:#0b61ff}
+    .btn{background:linear-gradient(90deg,#7b2ff7,#f107a3);color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .secondary{background:#f3f4f6;border:1px solid #e5e7eb;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .suggestions{margin-top:8px}
+    .flex{display:flex;gap:12px;align-items:center}
+    .small{font-size:13px}
+    input[type="text"], textarea, select{width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb}
+    .note{font-size:13px;color:#374151}
+  </style>
+</head>
+<body class="parent-portal page-hobbies">
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="performance.html">Performance</a>
+      <a href="attendance.html">Attendance</a>
+      <a href="counseling.html">Counseling</a>
+      <a class="active" href="hobbies.html">Hobbies</a>
+      <a href="chat.html">Communication</a>
+      <a href="profile.html">Profile</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <h1>Hobbies & Interests</h1>
+    <p class="muted">Add your hobbies, log progress, and get tailored suggestions with YouTube links and learning resources.</p>
+
+    <div class="card">
+      <h3>Add a Hobby</h3>
+      <div style="display:grid;grid-template-columns:1fr 160px;gap:12px;align-items:center">
+        <input id="hobbyName" type="text" placeholder="e.g., Guitar, Sketching, Chess" />
+        <select id="hobbyLevel">
+          <option value="Beginner">Beginner</option>
+          <option value="Intermediate">Intermediate</option>
+          <option value="Advanced">Advanced</option>
+        </select>
+      </div>
+      <div style="margin-top:8px">
+        <textarea id="hobbyNotes" rows="2" placeholder="Short notes or goals (e.g., learn a song by month-end)"></textarea>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+        <button id="addHobbyBtn" class="btn">Add Hobby</button>
+      </div>
+    </div>
+
+    <div id="hobbiesCard" class="card">
+      <h3>Your Hobbies</h3>
+      <div id="hobbyList" class="hobby-list">
+        <!-- hobbies rendered here -->
+      </div>
+      <div id="noHobbies" class="muted small" style="margin-top:10px">No hobbies yet — add one to get personalized suggestions.</div>
+    </div>
+
+    <div id="suggestionCard" class="card" style="display:none">
+      <h3>Suggestions</h3>
+      <div id="suggestionFor" class="muted small"></div>
+      <div id="suggestionList" class="suggestions"></div>
+    </div>
+
+  </main>
+
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <script src="../admin/admin.js"></script>
+  <script src="student.js"></script>
+  <script src="student-theme.js"></script>
+  <script>
+    // Hobby module for students
+    (function(){
+      if(!window.EduCareAdmin || !window.EduCareStudent) return;
+      const me = EduCareStudent.getCurrentStudent();
+      const addBtn = document.getElementById('addHobbyBtn');
+      const hobbyListEl = document.getElementById('hobbyList');
+      const noHobbiesEl = document.getElementById('noHobbies');
+      const suggestionCard = document.getElementById('suggestionCard');
+      const suggestionFor = document.getElementById('suggestionFor');
+      const suggestionList = document.getElementById('suggestionList');
+
+      function ensureHobbyStructure(student){
+        if(!student) return null;
+        // getStore may return null if the store isn't initialized yet; ensureStore will seed it.
+        const store = EduCareAdmin.getStore() || (typeof EduCareAdmin.ensureStore === 'function' ? EduCareAdmin.ensureStore() : null);
+        if(!store) return null;
+        const s = (store.users && store.users.students||[]).find(x=>x.id===student.id);
+        if(!s) return null;
+        if(!Array.isArray(s.hobbies)) s.hobbies = [];
+        return s;
+      }
+
+  function saveStore(store){ EduCareAdmin.setStore(store); }
+
+      function render(){
+        const student = EduCareStudent.getCurrentStudent();
+        if(!student){ hobbyListEl.innerHTML = '<div class="muted">No student selected</div>'; return; }
+        const store = EduCareAdmin.getStore() || (typeof EduCareAdmin.ensureStore === 'function' ? EduCareAdmin.ensureStore() : null);
+        if(!store){ hobbyListEl.innerHTML = '<div class="muted">Store unavailable</div>'; return; }
+        const s = (store.users && store.users.students||[]).find(x=>x.id===student.id) || {};
+        const hobbies = s.hobbies || [];
+        if(!hobbies.length){ hobbyListEl.innerHTML = ''; noHobbiesEl.style.display = 'block'; return; }
+        noHobbiesEl.style.display = 'none';
+        hobbyListEl.innerHTML = hobbies.map(h=>renderHobbyCard(h)).join('');
+      }
+
+      function renderHobbyCard(h){
+        const progressHtml = (h.progress||[]).map(p=>`<div style="font-size:13px;margin-top:6px;padding:8px;border-radius:8px;background:#f8fafc;border:1px solid #eef2f6"><strong>${p.title}</strong> — <span class="muted small">${new Date(p.at).toLocaleDateString()}</span><div style="margin-top:6px">${p.note||''}</div></div>`).join('');
+        const commentsHtml = (h.comments||[]).map(c=>`<div style="margin-top:6px;font-size:13px"><strong>${c.from}</strong> — <span class="muted small">${new Date(c.at).toLocaleString()}</span><div>${c.text}</div></div>`).join('');
+        const suggestionsBtn = `<button class="secondary" onclick="fetchSuggestionsFor('${h.id}')">Get Suggestions</button>`;
+        return `<div class="hobby" id="hobby_${h.id}">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-weight:600">${escapeHtml(h.name)}</div>
+              <div class="muted small">Level: <span class="pill">${h.level}</span></div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="secondary" onclick="editHobby('${h.id}')">Edit</button>
+              <button class="secondary" onclick="addProgress('${h.id}')">Log Progress</button>
+              ${suggestionsBtn}
+            </div>
+          </div>
+          <div class="note" style="margin-top:8px">${escapeHtml(h.notes || '')}</div>
+          <div style="margin-top:8px">${progressHtml}</div>
+          <div style="margin-top:8px">${commentsHtml}</div>
+        </div>`;
+      }
+
+      // Helpers
+      function uid(){ return Math.random().toString(36).slice(2,9); }
+      function escapeHtml(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+      // Add hobby
+      addBtn.addEventListener('click', ()=>{
+        try{
+          const name = document.getElementById('hobbyName').value.trim();
+          const level = document.getElementById('hobbyLevel').value;
+          const notes = document.getElementById('hobbyNotes').value.trim();
+          if(!name) return alert('Enter a hobby name');
+          // Ensure store exists before mutating
+          const store = EduCareAdmin.getStore() || (typeof EduCareAdmin.ensureStore === 'function' ? EduCareAdmin.ensureStore() : null);
+          const student = EduCareStudent.getCurrentStudent();
+          if(!student) return alert('No student selected');
+          // Find student record from the SAME store instance we're about to persist
+          const s = (store && store.users && store.users.students||[]).find(x=>x.id===student.id);
+          if(!s) return alert('Student record not found in store');
+          if(!Array.isArray(s.hobbies)) s.hobbies = [];
+          const h = { id: 'hob_' + uid(), name, level, notes, createdAt: new Date().toISOString(), progress: [], comments: [], suggestions: [] };
+          s.hobbies.push(h);
+          // Persist the updated store explicitly using the same store reference
+          try{ EduCareAdmin.setStore(store); }catch(e){ console.error('Failed to persist hobby', e); }
+          document.getElementById('hobbyName').value = '';
+          document.getElementById('hobbyNotes').value = '';
+          console.log('Added hobby', h, 'for student', student.id, 'store.hobbiesCount=', (s.hobbies && s.hobbies.length));
+          render();
+        }catch(e){ console.error('add hobby failed', e); alert('Failed to add hobby: '+(e && e.message)); }
+      });
+
+      // Edit hobby (simple prompt-based edit for prototype)
+      window.editHobby = function(hobbyId){
+        const store = EduCareAdmin.getStore() || (typeof EduCareAdmin.ensureStore === 'function' ? EduCareAdmin.ensureStore() : null);
+        const student = EduCareStudent.getCurrentStudent();
+        if(!student) return alert('No student selected');
+        if(!store) return alert('Store unavailable');
+        const s = (store.users && store.users.students||[]).find(x=>x.id===student.id);
+        const h = (s && s.hobbies||[]).find(x=>x.id===hobbyId);
+        if(!h) return alert('Hobby not found');
+        const newName = prompt('Hobby name', h.name) || h.name;
+        const newLevel = prompt('Level (Beginner/Intermediate/Advanced)', h.level) || h.level;
+        const newNotes = prompt('Notes/Goals', h.notes || '') || h.notes;
+        h.name = newName; h.level = newLevel; h.notes = newNotes; h.updatedAt = new Date().toISOString();
+        EduCareAdmin.setStore(store);
+        render();
+      };
+
+      // Log progress
+      window.addProgress = function(hobbyId){
+        const note = prompt('Short progress note (e.g., learned a chord, practiced 30 mins)');
+        if(!note) return;
+        const store = EduCareAdmin.getStore() || (typeof EduCareAdmin.ensureStore === 'function' ? EduCareAdmin.ensureStore() : null);
+        const student = EduCareStudent.getCurrentStudent();
+        if(!student) return alert('No student selected');
+        if(!store) return alert('Store unavailable');
+        const s = (store.users && store.users.students||[]).find(x=>x.id===student.id);
+        const h = (s && s.hobbies||[]).find(x=>x.id===hobbyId);
+        if(!h) return alert('Hobby not found');
+        h.progress = h.progress || [];
+        h.progress.push({ id: 'p_' + uid(), title: note.split('\n')[0], note, at: new Date().toISOString() });
+        EduCareAdmin.setStore(store);
+        render();
+      };
+
+      // Fetch suggestions (YouTube) for this hobby
+      window.fetchSuggestionsFor = async function(hobbyId){
+        const store = EduCareAdmin.getStore() || (typeof EduCareAdmin.ensureStore === 'function' ? EduCareAdmin.ensureStore() : null);
+        const student = EduCareStudent.getCurrentStudent();
+        if(!student) return alert('No student selected');
+        if(!store) return alert('Store unavailable');
+        const s = (store.users && store.users.students||[]).find(x=>x.id===student.id);
+        const h = (s && s.hobbies||[]).find(x=>x.id===hobbyId);
+        if(!h) return alert('Hobby not found');
+        suggestionCard.style.display = 'block';
+        suggestionFor.textContent = `Suggestions for: ${h.name}`;
+        suggestionList.innerHTML = '<div class="muted">Fetching suggestions…</div>';
+
+        // If developer has set a global YOUTUBE_API_KEY, use the Data API to fetch top videos
+        try{
+          // Prefer an API key injected on the page, otherwise fall back to a key stored in the canonical store meta
+          const _gs = (typeof EduCareAdmin.getStore === 'function') ? EduCareAdmin.getStore() : null;
+          const storeMetaKey = (_gs && _gs.meta && _gs.meta.youtubeApiKey) ? _gs.meta.youtubeApiKey : null;
+          const key = window.YOUTUBE_API_KEY || storeMetaKey || null;
+          if(key){
+            const q = encodeURIComponent(h.name + ' ' + h.level);
+            const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${q}&maxResults=6&type=video&key=${key}`;
+            const res = await fetch(url);
+            if(!res.ok) throw new Error('YT API failed');
+            const data = await res.json();
+            const items = data.items || [];
+            const html = items.map(it=>{
+              const title = it.snippet.title;
+              const vid = it.id.videoId;
+              const thumb = it.snippet.thumbnails && it.snippet.thumbnails.default && it.snippet.thumbnails.default.url;
+              return `<div style="display:flex;gap:8px;align-items:center;padding:8px;border-bottom:1px solid #f1f5f9"><div style="width:120px"><a href=\"https://www.youtube.com/watch?v=${vid}\" target=\"_blank\"><img src=\"${thumb}\" style=\"width:100%\"/></a></div><div><a href=\"https://www.youtube.com/watch?v=${vid}\" target=\"_blank\"><strong>${escapeHtml(title)}</strong></a><div style=\"margin-top:6px;color:#6b7280;font-size:13px\">Video · YouTube</div></div></div>`;
+            }).join('');
+            suggestionList.innerHTML = html || '<div class="muted">No videos found.</div>';
+            // persist suggestions metadata into hobby for offline view
+            h.suggestions = (items||[]).map(it=>({ id: it.id.videoId, title: it.snippet.title, url: `https://www.youtube.com/watch?v=${it.id.videoId}`, thumbnail: it.snippet.thumbnails && it.snippet.thumbnails.default && it.snippet.thumbnails.default.url }));
+            EduCareAdmin.setStore(store);
+            render();
+            return;
+          }
+        }catch(e){ console.warn('YT API fetch failed', e); }
+
+        // Fallback: avoid cross-origin fetch (CORS restrictions on suggestqueries.google.com).
+        // Instead generate useful YouTube search queries locally from the hobby name and level.
+        try{
+          const base = h.name.trim();
+          const lvl = (h.level || '').trim();
+          const templates = [
+            `${base} tutorial for ${lvl} learners`,
+            `${base} lessons for beginners`,
+            `${base} practice routine`,
+            `how to get better at ${base}`,
+            `${base} ${lvl} techniques`,
+            `${base} exercises and drills`
+          ];
+          const queries = Array.from(new Set(templates.map(t => t.trim()))).slice(0,6);
+          const linksHtml = queries.map(qs => `<div style="padding:6px 0"><a href=\"https://www.youtube.com/results?search_query=${encodeURIComponent(qs)}\" target=\"_blank\">${escapeHtml(qs)}</a></div>`).join('');
+          suggestionList.innerHTML = `<div style="margin-bottom:8px">Search suggestions (no API key required):</div>${linksHtml}<div style="margin-top:10px"><a href=\"https://www.youtube.com/results?search_query=${encodeURIComponent(base + ' ' + lvl)}\" target=\"_blank\">Open YouTube search for ${escapeHtml(base)}</a></div>`;
+
+          // persist suggestion references so student can view offline links later
+          h.suggestions = queries.map(qs => ({ id: null, title: qs, url: `https://www.youtube.com/results?search_query=${encodeURIComponent(qs)}` }));
+          EduCareAdmin.setStore(store);
+          render();
+          return;
+        }catch(e){ console.warn('local suggestion generation failed', e); suggestionList.innerHTML = '<div class="muted">Unable to generate suggestions right now. You can search YouTube manually.</div>'; }
+      };
+
+      // Listen to store changes and re-render
+      EduCareAdmin.onStoreUpdated(render);
+
+      // Ensure student selected and initial structure
+        if(EduCareStudent.ensureStudentSelected()){
+        const s = ensureHobbyStructure(EduCareStudent.getCurrentStudent());
+        if(s) EduCareAdmin.setStore(EduCareAdmin.getStore() || (typeof EduCareAdmin.ensureStore === 'function' ? EduCareAdmin.ensureStore() : null));
+        render();
+      }else{
+        window.addEventListener('student-ready', ()=>{ const s = ensureHobbyStructure(EduCareStudent.getCurrentStudent()); if(s) EduCareAdmin.setStore(EduCareAdmin.getStore() || (typeof EduCareAdmin.ensureStore === 'function' ? EduCareAdmin.ensureStore() : null)); render(); });
+      }
+
+    })();
+  </script>
+</body>
+</html>

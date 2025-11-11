@@ -1,0 +1,117 @@
+/* Admin portal sidebar theme: bold, glowing, and professional */
+:root{ --admin-grad-a:#0ea5a4; --admin-grad-b:#7c3aed; --admin-accent:#06b6d4; }
+
+.sidebar{background:linear-gradient(180deg,var(--admin-grad-b),var(--admin-grad-a));color:#fff;padding:20px;border-right:1px solid rgba(255,255,255,0.06)}
+.sidebar .brand{font-weight:800;letter-spacing:0.6px;text-transform:uppercase}
+
+/* glowing nav items */
+.sidebar .nav a{display:block;color:rgba(255,255,255,0.95);padding:10px 12px;border-radius:8px;margin:6px 0;transition:all 220ms cubic-bezier(.2,.9,.2,1);box-shadow:0 6px 18px rgba(12,15,24,0.06)}
+.sidebar .nav a:hover{transform:translateY(-4px) scale(1.02);box-shadow:0 18px 40px rgba(124,58,237,0.14);background:linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));}
+
+/* active indicator */
+.sidebar .nav a.active{background:linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));border-left:4px solid rgba(255,255,255,0.2);padding-left:8px}
+
+/* subtle floating highlight */
+.admin-highlight{position:fixed;left:80px;top:40vh;width:400px;height:400px;border-radius:50%;filter:blur(60px);opacity:0.08;pointer-events:none;z-index:5;background:radial-gradient(circle at 30% 30%, rgba(124,58,237,0.9), transparent 40%), radial-gradient(circle at 70% 70%, rgba(6,182,212,0.9), transparent 30%)}
+
+/* responsive, reduced-motion safe */
+@media (prefers-reduced-motion: reduce){
+  .sidebar .nav a, .admin-highlight{transition:none;animation:none}
+}
+
+/* ===== EduCare Admin - Visual Theme Enhancements (CSS only) =====
+   - Colorful, unique, glowing look for all admin pages
+   - Sidebar polish, unique EduCare title, card palette variants
+   - Purely visual; does not modify DOM, JS behavior, or element structure
+*/
+
+:root{
+  --admin-glow-1: #7c3aed; /* purple */
+  --admin-glow-2: #06b6d4; /* teal */
+  --admin-glow-3: #f472b6; /* pink */
+  --admin-surface:#ffffff;
+  --admin-muted:#6b7280;
+}
+
+/* Brand: colorful masked border with subtle glow */
+.sidebar .brand{position:relative;font-weight:900;letter-spacing:0.6px;text-transform:uppercase;padding:10px 12px;border-radius:10px;background:linear-gradient(90deg,rgba(255,255,255,0.02),transparent);overflow:visible}
+.sidebar .brand{--border-radius:15px;--border-width:4px;box-sizing:border-box;display:inline-block;position:relative;padding:10px 16px;border-radius:var(--border-radius);background-color:#121212;font-family:'Poppins','Roboto',Arial,'Segoe UI',sans-serif;font-size:18px;font-weight:700;color:#fff;z-index:2;overflow:visible}
+.sidebar .brand::after{
+  /* animated conic-gradient border using mask to create inner cutout (matches parent style) */
+  --m-i: linear-gradient(#000,#000);
+  --m-o: content-box, padding-box;
+  content: "";
+  position:absolute;left:0;top:0;width:100%;height:100%;padding:var(--border-width);border-radius:var(--border-radius);
+  background-image: conic-gradient(#ff0044,#ff6b00,#ffdc00,#00d084,#00a3ff,#6b00ff,#ff0044);
+  -webkit-mask-image: var(--m-i), var(--m-i);
+  mask-image: var(--m-i), var(--m-i);
+  -webkit-mask-origin: var(--m-o);
+  mask-origin: var(--m-o);
+  -webkit-mask-clip: var(--m-o);
+  mask-clip: var(--m-o);
+  mask-composite: exclude;
+  -webkit-mask-composite: destination-out;
+  filter: hue-rotate(0);
+  animation: rotate-hue linear 600ms infinite;
+  animation-play-state: paused;
+  pointer-events:none;
+}
+.sidebar .brand:hover::after{animation-play-state:running}
+.sidebar .brand span{position:relative;z-index:3}
+
+/* Sidebar nav items: stepped neon accent */
+.sidebar .nav a{display:block;color:rgba(255,255,255,0.96);padding:10px 14px;border-radius:10px;margin:8px 6px;transition:transform .18s ease,box-shadow .18s ease,background .18s}
+.sidebar .nav a:hover{transform:translateY(-4px);box-shadow:0 18px 48px rgba(124,58,237,0.14);background:linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));}
+.sidebar .nav a.active{box-shadow:inset 0 0 0 1px rgba(255,255,255,0.04), 0 12px 36px rgba(6,182,212,0.06);border-left:4px solid rgba(255,255,255,0.16);padding-left:10px}
+
+/* subtle colorful background glow anchored near sidebar */
+.admin-highlight{position:fixed;left:56px;top:36vh;width:420px;height:420px;border-radius:50%;filter:blur(48px);opacity:0.08;pointer-events:none;z-index:5;background:radial-gradient(circle at 30% 30%, var(--admin-glow-1), transparent 35%), radial-gradient(circle at 70% 70%, var(--admin-glow-2), transparent 30%)}
+
+/* Vibrant rainbow page background for admin pages (visual only) */
+body{
+  background: linear-gradient(120deg, #ff0044 0%, #ff6b00 16%, #ffdc00 33%, #00d084 50%, #00a3ff 66%, #6b00ff 83%, #ff0044 100%);
+  background-attachment: fixed;
+  background-size: 200% 200%;
+  color: #0b1220;
+}
+
+@keyframes rotate-hue{ to { filter: hue-rotate(1turn); } }
+
+/* Header and controls polish */
+main .main header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+main .main header h1{font-weight:700;color:#0f172a;margin:0}
+main .main header #greeting{color:var(--admin-muted);background:linear-gradient(90deg, rgba(124,58,237,0.06), rgba(6,182,212,0.03));padding:8px 12px;border-radius:10px}
+
+/* Cards: stronger color palettes per card (visual only) */
+.cards .card{position:relative;overflow:hidden;border-radius:16px;padding:20px;box-shadow:0 16px 40px rgba(12,12,40,0.06);transition:transform .18s,box-shadow .18s}
+.cards .card *{position:relative;z-index:2}
+.cards .card::after{content:'';position:absolute;inset:auto -20% -20% -20%;height:200%;background:radial-gradient(circle at 10% 10%, rgba(255,255,255,0.06), transparent 20%), radial-gradient(circle at 80% 80%, rgba(0,0,0,0.02), transparent 30%);transform:rotate(6deg);opacity:0.9;z-index:1}
+
+/* Card color variants for first rows - safe: purely cosmetic */
+#dashboardCards .card:nth-child(1){background:linear-gradient(180deg,#fff6fb,#fff0ff);box-shadow:0 18px 50px rgba(239,68,184,0.06)}
+#dashboardCards .card:nth-child(1) .value{color:#be185d}
+
+#dashboardCards .card:nth-child(2){background:linear-gradient(180deg,#fffaf0,#fff6e6);box-shadow:0 18px 50px rgba(249,115,22,0.06)}
+#dashboardCards .card:nth-child(2) .value{color:#c2410c}
+
+#dashboardCards .card:nth-child(3){background:linear-gradient(180deg,#f0fbff,#e6f6ff);box-shadow:0 18px 50px rgba(3,169,244,0.06)}
+#dashboardCards .card:nth-child(3) .value{color:#0369a1}
+
+#dashboardCards .card:nth-child(4){background:linear-gradient(180deg,#f7fff7,#f0fff0);box-shadow:0 18px 50px rgba(16,185,129,0.06)}
+#dashboardCards .card:nth-child(4) .value{color:#166534}
+
+.cards .card:hover{transform:translateY(-8px);box-shadow:0 28px 70px rgba(99,102,241,0.12)}
+
+/* Buttons and micro UI (visual only) */
+.btn{background:linear-gradient(90deg,var(--admin-glow-1),var(--admin-glow-3));color:#fff;border:0;padding:8px 12px;border-radius:10px;cursor:pointer;box-shadow:0 10px 30px rgba(124,58,237,0.12);transition:transform .12s}
+.btn.secondary{background:#eef2ff;color:#111;box-shadow:none}
+.btn:hover{transform:translateY(-3px)}
+
+/* Table row hover accent */
+table tbody tr:hover{background:linear-gradient(90deg, rgba(124,58,237,0.03), rgba(6,182,212,0.02));}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .cards .card, .sidebar .nav a, .admin-highlight{transition:none;animation:none}
+}
+

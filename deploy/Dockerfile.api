@@ -1,0 +1,26 @@
+FROM python:3.11-slim
+
+# Install system deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    wget \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy only requirements first for better docker caching
+COPY model/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# Copy the application
+COPY . /app
+
+ENV PYTHONUNBUFFERED=1
+ENV EDUCARE_PORT=8000
+
+# Expose the API port
+EXPOSE 8000
+
+# Run Gunicorn serving the Flask app (model.api:app)
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8000", "model.api:app"]

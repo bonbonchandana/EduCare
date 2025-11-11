@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Counselor • Students</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="counselor-sidebar.css" />
+  <!-- Use local EduCareAdmin store (no Firebase) -->
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  
+
+  <style>
+    :root{--gradA:#0ea5e9;--gradB:#7c3aed;--bg:#f5f7fb;--card:#fff;--muted:#6b7280}
+    *{box-sizing:border-box}body{margin:0;display:flex;min-height:100vh;background:var(--bg);font-family:'Poppins',sans-serif}
+    .sidebar{width:240px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:22px 12px;display:flex;flex-direction:column}
+    .brand{font-weight:600;font-size:20px;text-align:center;margin-bottom:16px}
+    .nav a{display:block;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;margin:6px 6px;transition:.2s}
+    .nav a:hover,.nav a.active{background:rgba(255,255,255,.2)}
+    .main{flex:1;padding:24px;overflow:auto}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+    .card{background:var(--card);border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:18px}
+    .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .name{font-weight:600;font-size:16px}
+    .risk.low{background:#dcfce7;color:#166534;padding:3px 8px;border-radius:10px;font-size:12px}
+    .risk.medium{background:#fef9c3;color:#92400e;padding:3px 8px;border-radius:10px;font-size:12px}
+    .risk.high{background:#fee2e2;color:#991b1b;padding:3px 8px;border-radius:10px;font-size:12px}
+    .meta{color:#6b7280;font-size:13px;margin-bottom:6px}
+    button{padding:8px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff;cursor:pointer;font-size:13px}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+    .modal.open{display:flex}
+    .modal .box{background:#fff;border-radius:16px;padding:20px;max-width:480px;width:100%;box-shadow:0 10px 24px rgba(0,0,0,.2)}
+    textarea,input[type=datetime-local]{width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin-top:6px}
+    .row{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
+  </style>
+  <link rel="stylesheet" href="counselor-sidebar.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a class="active" href="students.html">Students</a>
+      <a href="risk-view.html">AI Risk View</a>
+      <a href="counseling.html">Counseling & Feedback</a>
+      <a href="hobbies.html">Hobbies</a>
+      <a href="chat.html">Communication</a>
+      <a href="reports.html">Reports & Analytics</a>
+      <a href="profile.html">Profile</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <h1>Assigned Students</h1>
+    <div class="grid" id="studentGrid"></div>
+  </main>
+
+  <!-- Modal for adding performance record -->
+  <div class="modal" id="perfModal">
+    <div class="box">
+      <h2>Add Performance for <span id="perf_student_name"></span></h2>
+      <input type="hidden" id="perf_student_id" />
+          <div class="field">
+            <label>Subject</label>
+            <input type="text" id="perf_subject" placeholder="Subject name" />
+          </div>
+      <div class="field">
+        <label>Internal Marks</label>
+        <input type="number" id="perf_internal" placeholder="0" />
+      </div>
+      <div class="field">
+        <label>External Marks</label>
+        <input type="number" id="perf_external" placeholder="0" />
+      </div>
+      <div class="field">
+        <label>Total</label>
+        <div id="perf_total" style="font-weight:600;padding:8px 0">-</div>
+      </div>
+
+      <h3 style="margin-top:12px">Existing Records</h3>
+      <div id="existing_perf_list" style="max-height:220px;overflow:auto"></div>
+      <div class="row">
+        <button id="perf_cancel" class="secondary">Cancel</button>
+        <button id="perf_save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for scheduling session -->
+  <div class="modal" id="sessionModal">
+    <div class="box">
+      <h2>Schedule Counseling Session</h2>
+      <div class="field">
+        <label for="sessionDate">Date & Time</label>
+        <input type="datetime-local" id="sessionDate" />
+      </div>
+      <div class="field">
+        <label for="sessionNotes">Notes</label>
+        <textarea id="sessionNotes" rows="4" placeholder="Session notes..."></textarea>
+      </div>
+      <div class="field">
+        <label for="sessionOutcome">Expected Outcome</label>
+        <textarea id="sessionOutcome" rows="3" placeholder="Expected outcomes..."></textarea>
+      </div>
+      <div class="row">
+        <button id="cancelBtn" style="background:#9ca3af">Cancel</button>
+        <button id="saveBtn">Save Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for editing student (attendance/cgpa/stress/branch/department) -->
+  <div class="modal" id="editStudentModal">
+    <div class="box">
+      <h2>Edit Student Profile</h2>
+      <input type="hidden" id="edit_student_id" />
+      <div class="field"><label>Branch</label><input type="text" id="edit_branch" /></div>
+      <div class="field"><label>Department</label><input type="text" id="edit_dept" /></div>
+      <div class="field"><label>Attendance (%)</label><input type="number" id="edit_attendance" min="0" max="100" /></div>
+      <div class="field"><label>CGPA</label><input type="number" id="edit_cgpa" step="0.1" min="0" max="10" /></div>
+      <div class="field"><label>Stress (1-10)</label><input type="number" id="edit_stress" min="0" max="10" /></div>
+      <div class="row">
+        <button id="edit_cancel" style="background:#9ca3af">Cancel</button>
+        <button id="edit_save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for editing monthly attendance records -->
+  <div class="modal" id="attendanceModal">
+    <div class="box">
+      <h2>Manage Attendance for <span id="att_student_name"></span></h2>
+      <input type="hidden" id="att_student_id" />
+      <div style="margin-top:8px">
+        <label>Month (YYYY-MM)</label>
+        <input type="month" id="att_month" placeholder="YYYY-MM" />
+      </div>
+      <div style="margin-top:8px">
+        <label>Total Working Days</label>
+        <input type="number" id="att_total" placeholder="Total working days" />
+      </div>
+      <div style="margin-top:8px">
+        <label>Days Present</label>
+        <input type="number" id="att_present" placeholder="Days present" />
+      </div>
+      <div style="margin-top:12px">
+        <button id="att_add">Add / Update</button>
+        <button id="att_close" style="background:#9ca3af;margin-left:8px">Close</button>
+      </div>
+
+      <h3 style="margin-top:12px">Existing Records</h3>
+      <div id="existing_att_list" style="max-height:240px;overflow:auto;margin-top:8px"></div>
+    </div>
+  </div>
+
+  <script src="../admin/admin.js"></script>
+  <script src="counselor.js"></script>
+  <script>
+    // Consolidated script: render assigned students and provide schedule + performance modals
+    const grid = document.getElementById('studentGrid');
+    const sessionModal = document.getElementById('sessionModal');
+    const sessionSaveBtn = document.getElementById('saveBtn');
+    const sessionCancelBtn = document.getElementById('cancelBtn');
+    let currentStudentId = null;
+
+    function riskClass(r){ if(r==='High') return 'risk high'; if(r==='Medium') return 'risk medium'; return 'risk low'; }
+
+    function openScheduleModal(id){
+      // close other modals first
+      closePerformanceModal();
+      closeEditStudentModal();
+      currentStudentId = id;
+      sessionModal.classList.add('open');
+      document.body.classList.add('modal-open');
+    }
+    sessionCancelBtn.onclick = ()=>{ sessionModal.classList.remove('open'); document.body.classList.remove('modal-open'); };
+    sessionSaveBtn.onclick = ()=>{
+      const date = document.getElementById('sessionDate').value;
+      const notes = document.getElementById('sessionNotes').value;
+      const outcome = document.getElementById('sessionOutcome').value;
+      if(!date){ alert('Please select a date'); return; }
+      EduCareCounselor.addSession({ studentId: currentStudentId, date, notes, outcome });
+      alert('Session scheduled successfully!');
+      sessionModal.classList.remove('open'); document.body.classList.remove('modal-open'); render();
+    };
+
+    // Performance modal handlers (elements exist earlier)
+    function computeTotal(){ const i = Number(document.getElementById('perf_internal').value)||0; const e = Number(document.getElementById('perf_external').value)||0; document.getElementById('perf_total').textContent = (i+e).toString(); }
+  function closePerformanceModal(){ const pm = document.getElementById('perfModal'); if(pm) pm.classList.remove('open'); document.body.classList.remove('modal-open'); }
+    function savePerformance(){
+      const studentId = document.getElementById('perf_student_id').value;
+      const subject = document.getElementById('perf_subject').value.trim();
+      const internal = Number(document.getElementById('perf_internal').value) || 0;
+      const external = Number(document.getElementById('perf_external').value) || 0;
+      const total = internal + external;
+      if(!studentId || !subject){ alert('Please provide subject and student'); return; }
+      const s = EduCareAdmin.getById('students', studentId) || {};
+      // support edit mode
+      const editId = document.getElementById('perf_edit_id') ? document.getElementById('perf_edit_id').value : null;
+      const perf = s.performance && Array.isArray(s.performance) ? s.performance.slice() : [];
+      if(editId){
+        const idx = perf.findIndex(p=>p.id===editId);
+        if(idx !== -1){ perf[idx] = { ...perf[idx], subject, internal, external, total, date: new Date().toISOString(), addedBy: EduCareCounselor.getCurrentCounselorId() }; }
+      } else {
+        const entry = { id: 'perf_' + Math.random().toString(36).slice(2,9), subject, internal, external, total, date: new Date().toISOString(), addedBy: EduCareCounselor.getCurrentCounselorId() };
+        perf.push(entry);
+      }
+      try{ EduCareAdmin.update('students', studentId, { performance: perf }); }catch(e){ console.error('Failed to save performance',e); alert('Save failed'); return; }
+      // clear edit marker
+      if(document.getElementById('perf_edit_id')) document.getElementById('perf_edit_id').value = '';
+      closePerformanceModal(); render(); alert('Performance record saved');
+    }
+
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const perfInternal = document.getElementById('perf_internal');
+      const perfExternal = document.getElementById('perf_external');
+      if(perfInternal) perfInternal.addEventListener('input', computeTotal);
+      if(perfExternal) perfExternal.addEventListener('input', computeTotal);
+      const perfCancel = document.getElementById('perf_cancel'); if(perfCancel) perfCancel.addEventListener('click', closePerformanceModal);
+      const perfSave = document.getElementById('perf_save'); if(perfSave) perfSave.addEventListener('click', savePerformance);
+    });
+
+    function openPerformanceModal(studentId){
+      // close other modals first
+      closeEditStudentModal();
+      // ensure session modal closed
+      if(sessionModal) sessionModal.classList.remove('open');
+      const modal = document.getElementById('perfModal');
+      const s = EduCareAdmin.getById('students', studentId) || {};
+      document.getElementById('perf_student_name').textContent = s.name || '(unknown)';
+      document.getElementById('perf_student_id').value = studentId;
+      document.getElementById('perf_subject').value = '';
+      document.getElementById('perf_internal').value = '';
+      document.getElementById('perf_external').value = '';
+      document.getElementById('perf_total').textContent = '';
+      // clear edit id if present
+      if(document.getElementById('perf_edit_id')) document.getElementById('perf_edit_id').value = '';
+      // render existing records area
+      renderExistingPerf(studentId);
+      if(modal){ modal.classList.add('open'); document.body.classList.add('modal-open'); }
+    }
+
+    function render(){
+      const counselor = EduCareCounselor.getCurrentCounselor(); if(!counselor) return;
+      const students = EduCareCounselor.getAssignedStudents();
+      grid.innerHTML = students.map(s => `
+        <div class="card"> 
+          <div class="name">${s.name}</div>
+          <div class="meta">PIN: ${s.pin || '-'} | CGPA: ${s.cgpa ?? '-'}</div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button data-action="manage" data-id="${s.id}">Manage</button>
+                <button class="secondary" data-action="schedule" data-id="${s.id}">Schedule</button>
+                <button style="background:#f59e0b" data-action="attendance" data-id="${s.id}">Attendance</button>
+                <button style="background:#10b981" data-action="edit" data-id="${s.id}">Edit</button>
+              </div>
+        </div>
+      `).join('') || '<p style="color:#6b7280">No assigned students.</p>';
+    }
+
+    // --- Performance management helpers ---
+    function renderExistingPerf(studentId){
+      const s = EduCareAdmin.getById('students', studentId) || {};
+      const list = Array.isArray(s.performance) ? s.performance.slice().reverse() : [];
+      const container = document.getElementById('existing_perf_list');
+      if(!container) return;
+      container.innerHTML = list.map(p => `
+        <div style="border:1px solid #eee;padding:8px;margin-top:8px;border-radius:8px">
+          <strong>${p.subject}</strong>
+          <div style="color:#6b7280">${p.internal} (Internal) / ${p.external} (External) — Total ${p.total}%</div>
+          <div style="margin-top:6px;display:flex;gap:8px">
+            <button onclick="editPerf('${studentId}','${p.id}')">Edit</button>
+            <button style="background:#ef4444" onclick="deletePerf('${studentId}','${p.id}')">Delete</button>
+          </div>
+        </div>
+      `).join('') || '<div style="color:#6b7280;margin-top:8px">No records</div>';
+    }
+
+    function editPerf(studentId, perfId){
+      const s = EduCareAdmin.getById('students', studentId) || {};
+      const p = (s.performance||[]).find(x=>x.id===perfId);
+      if(!p) return alert('Record not found');
+      document.getElementById('perf_student_id').value = studentId;
+      document.getElementById('perf_subject').value = p.subject || '';
+      document.getElementById('perf_internal').value = p.internal || 0;
+      document.getElementById('perf_external').value = p.external || 0;
+      document.getElementById('perf_total').textContent = (Number(p.internal||0)+Number(p.external||0)).toString();
+      if(!document.getElementById('perf_edit_id')){
+        const hidden = document.createElement('input'); hidden.type='hidden'; hidden.id='perf_edit_id'; document.getElementById('perfModal').querySelector('.box').appendChild(hidden);
+      }
+      document.getElementById('perf_edit_id').value = perfId;
+      renderExistingPerf(studentId);
+    }
+
+    function deletePerf(studentId, perfId){
+      if(!confirm('Delete this performance record?')) return;
+      const s = EduCareAdmin.getById('students', studentId) || {};
+      const perf = (s.performance||[]).filter(p=>p.id!==perfId);
+      try{ EduCareAdmin.update('students', studentId, { performance: perf }); }catch(e){ console.error(e); alert('Delete failed'); return; }
+      render();
+      // If modal open, refresh list
+      if(document.getElementById('perfModal').classList.contains('open')) renderExistingPerf(studentId);
+    }
+
+    // --- Edit student modal handlers ---
+    function openEditStudentModal(studentId){
+      // close other modals first
+      closePerformanceModal();
+      if(sessionModal) sessionModal.classList.remove('open');
+      const s = EduCareAdmin.getById('students', studentId) || {};
+      document.getElementById('edit_student_id').value = studentId;
+      document.getElementById('edit_branch').value = s.branch || '';
+      document.getElementById('edit_dept').value = s.department || '';
+      document.getElementById('edit_attendance').value = s.attendance || '';
+      document.getElementById('edit_cgpa').value = s.cgpa || '';
+      document.getElementById('edit_stress').value = s.stress || '';
+      document.getElementById('editStudentModal').classList.add('open');
+      document.body.classList.add('modal-open');
+    }
+
+    function closeEditStudentModal(){ const em = document.getElementById('editStudentModal'); if(em) em.classList.remove('open'); document.body.classList.remove('modal-open'); }
+
+    function saveStudentEdits(){
+      const id = document.getElementById('edit_student_id').value;
+      if(!id) return;
+      const patch = {
+        branch: document.getElementById('edit_branch').value.trim(),
+        department: document.getElementById('edit_dept').value.trim(),
+        attendance: Number(document.getElementById('edit_attendance').value) || 0,
+        cgpa: Number(document.getElementById('edit_cgpa').value) || 0,
+        stress: Number(document.getElementById('edit_stress').value) || 0
+      };
+      try{
+        console.log('Saving student edits', id, patch);
+        const updated = EduCareAdmin.update('students', id, patch);
+        console.log('Updated student:', updated);
+        // show brief inline status
+        const modalBox = document.getElementById('editStudentModal').querySelector('.box');
+        if(modalBox){
+          let status = modalBox.querySelector('.save-status');
+          if(!status){ status = document.createElement('div'); status.className = 'save-status'; status.style.color='#16a34a'; status.style.marginTop='8px'; modalBox.appendChild(status); }
+          status.textContent = 'Saved ✓';
+          setTimeout(()=>{ if(status) status.textContent = ''; }, 1500);
+        }
+      }catch(e){ console.error(e); alert('Save failed'); return; }
+      // ensure UI reflects new data
+      closeEditStudentModal(); render();
+      // notify other listeners (EduCareAdmin already broadcasts via setStore)
+      alert('Student profile updated');
+    }
+
+    // --- Attendance modal helpers ---
+    function openAttendanceModal(studentId){
+      // close other modals
+      closePerformanceModal(); closeEditStudentModal(); if(sessionModal) sessionModal.classList.remove('open');
+      const s = EduCareAdmin.getById('students', studentId) || {};
+      document.getElementById('att_student_name').textContent = s.name || '(unknown)';
+      document.getElementById('att_student_id').value = studentId;
+      document.getElementById('att_month').value = '';
+      document.getElementById('att_total').value = '';
+      document.getElementById('att_present').value = '';
+      renderExistingAttendance(studentId);
+      const am = document.getElementById('attendanceModal'); if(am){ am.classList.add('open'); document.body.classList.add('modal-open'); }
+    }
+
+    function closeAttendanceModal(){ const am = document.getElementById('attendanceModal'); if(am) am.classList.remove('open'); document.body.classList.remove('modal-open'); }
+
+    function renderExistingAttendance(studentId){
+      const s = EduCareAdmin.getById('students', studentId) || {};
+      const list = Array.isArray(s.attendanceRecords) ? s.attendanceRecords.slice().reverse() : [];
+      const container = document.getElementById('existing_att_list');
+      if(!container) return;
+      container.innerHTML = list.map(r=>{
+        const pct = r.total ? Math.round((Number(r.present||0)/Number(r.total||1))*100) : 0;
+        return `
+          <div style="border:1px solid #eee;padding:8px;margin-top:8px;border-radius:8px;background:#fff">
+            <strong>${r.month}</strong>
+            <div style="color:#6b7280">${r.present} / ${r.total} — ${pct}%</div>
+            <div style="margin-top:6px;display:flex;gap:8px">
+              <button onclick="editAttendance('${studentId}','${r.month}')">Edit</button>
+              <button style="background:#ef4444" onclick="deleteAttendance('${studentId}','${r.month}')">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('') || '<div style="color:#6b7280">No attendance records</div>';
+    }
+
+    function editAttendance(studentId, month){
+      const s = EduCareAdmin.getById('students', studentId) || {};
+      const r = (s.attendanceRecords||[]).find(x=>x.month===month);
+      if(!r) return alert('Record not found');
+      document.getElementById('att_student_id').value = studentId;
+      document.getElementById('att_month').value = r.month;
+      document.getElementById('att_total').value = r.total;
+      document.getElementById('att_present').value = r.present;
+      renderExistingAttendance(studentId);
+    }
+
+    function deleteAttendance(studentId, month){
+      if(!confirm('Delete this attendance record?')) return;
+      const s = EduCareAdmin.getById('students', studentId) || {};
+      const newRecords = (s.attendanceRecords||[]).filter(x=>x.month!==month);
+      // recompute overall attendance
+      const overall = computeOverallAttendance(newRecords);
+      try{ EduCareAdmin.update('students', studentId, { attendanceRecords: newRecords, attendance: overall }); }catch(e){ console.error(e); alert('Delete failed'); return; }
+      render(); renderExistingAttendance(studentId);
+    }
+
+    function computeOverallAttendance(records){
+      if(!Array.isArray(records) || !records.length) return 0;
+      let totalDays = 0, presentDays = 0;
+      records.forEach(r=>{ totalDays += Number(r.total||0); presentDays += Number(r.present||0); });
+      if(totalDays === 0) return 0;
+      return Math.round((presentDays/totalDays)*100);
+    }
+
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const attAdd = document.getElementById('att_add'); if(attAdd) attAdd.addEventListener('click', ()=>{
+        const studentId = document.getElementById('att_student_id').value;
+        const month = (document.getElementById('att_month').value||'').trim();
+        const total = Number(document.getElementById('att_total').value)||0;
+        const present = Number(document.getElementById('att_present').value)||0;
+        // Validation: studentId, month format YYYY-MM, total > 0, present between 0 and total
+        const monthRegex = /^\d{4}-\d{2}$/;
+        if(!studentId) { alert('No student selected'); return; }
+        if(!month || !monthRegex.test(month)){ alert('Please provide a valid month in YYYY-MM format'); return; }
+        if(!Number.isFinite(total) || total <= 0){ alert('Please provide a valid total working days (> 0)'); return; }
+        if(!Number.isFinite(present) || present < 0 || present > total){ alert('Please provide a valid days present (0 to total working days)'); return; }
+        const s = EduCareAdmin.getById('students', studentId) || {};
+        const records = Array.isArray(s.attendanceRecords) ? s.attendanceRecords.slice() : [];
+        const existingIndex = records.findIndex(r=>r.month===month);
+        if(existingIndex !== -1){ records[existingIndex] = { month, total, present }; }
+        else records.push({ month, total, present });
+        const overall = computeOverallAttendance(records);
+        try{ EduCareAdmin.update('students', studentId, { attendanceRecords: records, attendance: overall }); }catch(e){ console.error(e); alert('Save failed'); return; }
+        renderExistingAttendance(studentId);
+        alert('Attendance saved');
+      });
+      const attClose = document.getElementById('att_close'); if(attClose) attClose.addEventListener('click', closeAttendanceModal);
+    });
+
+    // initialize and wire handlers after DOM ready
+    function init(){
+      if(EduCareCounselor.ensureCounselorSelected()) render(); else window.addEventListener('counselor-ready', render, {once:true});
+      EduCareAdmin.onStoreUpdated(render);
+      const editCancel = document.getElementById('edit_cancel'); if(editCancel) editCancel.addEventListener('click', closeEditStudentModal);
+      const editSave = document.getElementById('edit_save'); if(editSave) editSave.addEventListener('click', saveStudentEdits);
+
+      // Event delegation for grid buttons (reliable even if inline handlers fail)
+      if(grid){
+        grid.addEventListener('click', (ev) => {
+          const btn = ev.target.closest('button');
+          if(!btn) return;
+          const action = btn.dataset.action;
+          const sid = btn.dataset.id;
+          if(!action) return;
+          if(action === 'manage') return openPerformanceModal(sid);
+          if(action === 'schedule') return openScheduleModal(sid);
+          if(action === 'attendance') return openAttendanceModal(sid);
+          if(action === 'edit') return openEditStudentModal(sid);
+        });
+      }
+    }
+
+    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+  </script>
+  
+</body>
+</html>

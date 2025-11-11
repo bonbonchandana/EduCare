@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Student • Attendance</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <!-- Student grid removed from student pages (was a global student list beside the sidebar) -->
+  <link rel="stylesheet" href="../parent/parent-theme.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{--gradA:#14b8a6;--gradB:#3b82f6;--bg:#f5f7fb;--card:#fff;--muted:#6b7280}
+    *{box-sizing:border-box}
+    body{margin:0;display:flex;min-height:100vh;background:var(--bg);font-family:'Poppins',sans-serif}
+    .sidebar{width:240px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:22px 12px;display:flex;flex-direction:column}
+    .brand{font-weight:600;font-size:20px;text-align:center;margin-bottom:16px}
+    .nav a{display:block;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;margin:6px 6px;transition:.2s}
+    .nav a:hover,.nav a.active{background:rgba(255,255,255,.2)}
+    .main{flex:1;padding:24px;overflow:auto}
+    table{width:100%;border-collapse:collapse;margin-top:18px;background:var(--card);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+    th,td{padding:12px;text-align:left;border-bottom:1px solid #f1f5f9}
+    th{background:#f3f4f6;font-weight:600}
+    tr:last-child td{border:none}
+    canvas{margin-top:24px;background:#fff;border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:14px}
+    .tips{background:#fff;border-radius:16px;padding:16px;margin-top:24px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+  </style>
+</head>
+<body class="parent-portal page-attendance">
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="performance.html">Performance</a>
+      <a class="active" href="attendance.html">Attendance</a>
+      <a href="counseling.html">Counseling Reports</a>
+      <a href="hobbies.html">Hobbies</a>
+      <a href="chat.html">Communication</a>
+      <a href="profile.html">Profile</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <h1>Attendance Overview</h1>
+    <p style="color:#6b7280">Your monthly attendance trend and improvement suggestions.</p>
+
+    <table id="attTable">
+      <thead><tr><th>Month</th><th>Total Working Days</th><th>Days Present</th><th>Attendance %</th></tr></thead>
+      <tbody></tbody>
+    </table>
+
+    <canvas id="attChart"></canvas>
+
+    <div class="tips" id="attTips"></div>
+  </main>
+
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <script src="../admin/admin.js"></script>
+  <script src="student.js"></script>
+  <script src="student-theme.js"></script>
+  <script>
+    const sampleAtt = [
+      {month:'Jan', total:22, present:20},
+      {month:'Feb', total:20, present:17},
+      {month:'Mar', total:23, present:18},
+      {month:'Apr', total:21, present:19},
+      {month:'May', total:20, present:16},
+      {month:'Jun', total:18, present:15},
+    ];
+
+    function getAttendanceForStudent(s){
+      if(!s) return sampleAtt;
+      if(Array.isArray(s.attendanceRecords) && s.attendanceRecords.length) return s.attendanceRecords;
+      return sampleAtt;
+    }
+
+    function render(){
+      const s = EduCareStudent.getCurrentStudent();
+      if(!s) return;
+
+      const attData = getAttendanceForStudent(s);
+      const tbody = document.querySelector('#attTable tbody');
+      tbody.innerHTML = attData.map(a=>{
+        const percent = a.total ? ((Number(a.present||0) / Number(a.total||1)) * 100).toFixed(1) : '0.0';
+        return `<tr><td>${a.month}</td><td>${a.total}</td><td>${a.present}</td><td>${percent}%</td></tr>`;
+      }).join('');
+
+      const ctx = document.getElementById('attChart');
+      try{ if(window._attChart) window._attChart.destroy(); }catch(e){}
+      window._attChart = new Chart(ctx,{
+        type:'line',
+        data:{
+          labels:attData.map(a=>a.month),
+          datasets:[{label:'Attendance %',data:attData.map(a=> a.total ? ((Number(a.present||0)/Number(a.total||1))*100).toFixed(1) : 0),borderColor:'#3b82f6',backgroundColor:'#bfdbfe'}]
+        },
+        options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:100}}}
+      });
+
+      // AI attendance insights
+      const avg = attData.length ? (attData.reduce((acc,b)=> acc + (b.total ? ((Number(b.present||0)/Number(b.total||1))*100) : 0),0) / attData.length) : 0;
+      let msg = '';
+      if(avg < 75)
+        msg = `⚠️ Your average attendance is ${avg.toFixed(1)}%. You are below the required 75%. Please attend regularly to avoid risk of academic penalty.`;
+      else if(avg < 85)
+        msg = `🟡 Your attendance is ${avg.toFixed(1)}%. Keep improving — consistent attendance improves performance and lowers risk.`;
+      else
+        msg = `✅ Excellent! Your attendance rate of ${avg.toFixed(1)}% reflects great commitment. Keep it up!`;
+
+      document.getElementById('attTips').innerHTML = `
+        <h3>Attendance Insights</h3>
+        <p>${msg}</p>
+        <p style="color:#6b7280">Overall System-Recorded Attendance: ${s.attendance || 0}%</p>
+      `;
+    }
+
+    if(EduCareStudent.ensureStudentSelected()) render();
+    else window.addEventListener('student-ready', render,{once:true});
+    if(window.EduCareAdmin) EduCareAdmin.onStoreUpdated(render);
+  </script>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Parent • Academic Overview</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Firebase / Data Layer -->
+  <script type="module" src="../admin/educare-data-firebase.js"></script>
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+
+  <!-- Parent theme -->
+  <link rel="stylesheet" href="parent-theme.css">
+</head>
+
+<body class="parent-portal page-academic">
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <div class="radio-container" style="--total-radio:6">
+        <input type="radio" id="nav-dashboard" name="parent-nav" />
+        <label for="nav-dashboard" onclick="location.href='dashboard.html'">Dashboard</label>
+
+        <input type="radio" id="nav-academic" name="parent-nav" checked />
+        <label for="nav-academic" onclick="location.href='academic.html'">Academic</label>
+
+        <input type="radio" id="nav-attendance" name="parent-nav" />
+        <label for="nav-attendance" onclick="location.href='attendance.html'">Attendance</label>
+
+        <input type="radio" id="nav-counseling" name="parent-nav" />
+        <label for="nav-counseling" onclick="location.href='counseling.html'">Counseling Feedback</label>
+
+        <input type="radio" id="nav-chat" name="parent-nav" />
+        <label for="nav-chat" onclick="location.href='chat.html'">Communication</label>
+
+        <input type="radio" id="nav-profile" name="parent-nav" />
+        <label for="nav-profile" onclick="location.href='profile.html'">Profile</label>
+
+        <div class="glider-container"><div class="glider"></div></div>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div>
+        <h1>Academic Overview</h1>
+        <p style="color:#f7f9fc">Detailed performance breakdown for your child across all subjects.</p>
+      </div>
+      <div class="header-controls">
+        <button class="notif-button" id="notifBtn" aria-expanded="false" aria-controls="notifPanel" title="Notifications">
+          <span class="notif-icon">🔔</span>
+          <span class="notif-text" style="display:none">Notifications</span>
+        </button>
+      </div>
+    </div>
+
+    <table id="perfTable" class="marks-glow">
+      <thead>
+        <tr><th>Subject</th><th>Internal Marks</th><th>External Marks</th><th>Total (%)</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="graph-wrap">
+      <canvas id="perfChart" class="perf-chart"></canvas>
+    </div>
+    <div class="insights" id="aiInsights"></div>
+  </main>
+
+  <script src="../admin/admin.js"></script>
+  <script src="parent.js"></script>
+  <script src="parent-theme.js"></script>
+
+  <script>
+    const samplePerf = [
+      {subject:'Mathematics III', internal:27, external:58},
+      {subject:'Data Structures', internal:29, external:62},
+      {subject:'Digital Electronics', internal:25, external:46},
+      {subject:'Operating Systems', internal:26, external:54},
+      {subject:'Software Engineering', internal:30, external:60}
+    ];
+
+    function getSubjectPerformanceForStudent(s){
+      if(!s) return samplePerf;
+      if(Array.isArray(s.academics) && s.academics.length) return s.academics;
+      if(Array.isArray(s.performance) && s.performance.length) return s.performance;
+      if(s.marks && Array.isArray(s.marks.subjects)) return s.marks.subjects;
+      if(Array.isArray(s.subjects)) return s.subjects;
+      return samplePerf;
+    }
+
+    function render(){
+      const p = EduCareParent.getCurrentParent?.();
+      if(!p) return;
+      const s = EduCareParent.getLinkedStudent?.();
+      if(!s) return;
+
+      const perfData = getSubjectPerformanceForStudent(s);
+      const tbody = document.querySelector('#perfTable tbody');
+      tbody.innerHTML = perfData.map(sub=>{
+        const internal = Number(sub.internal || sub.internals || 0);
+        const external = Number(sub.external || sub.externals || sub.externalMarks || 0);
+        const total = Math.min(Math.round(internal + external), 100);
+        return `<tr>
+          <td>${sub.subject || sub.name || 'Subject'}</td>
+          <td>${internal}</td>
+          <td>${external}</td>
+          <td>${total}%</td>
+        </tr>`;
+      }).join('');
+
+      const ctx = document.getElementById('perfChart');
+      if(window._perfChart) window._perfChart.destroy?.();
+      window._perfChart = new Chart(ctx,{
+        type:'bar',
+        data:{
+          labels:perfData.map(p=>p.subject || p.name || 'Subject'),
+          datasets:[{
+            label:'Total %',
+            data:perfData.map(p=>{
+              const i = Number(p.internal || p.internals || 0);
+              const e = Number(p.external || p.externals || p.externalMarks || 0);
+              return Math.min(Math.round(i+e), 100);
+            }),
+            backgroundColor:'#fb7185'
+          }]
+        },
+        options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:100}}}
+      });
+
+      const perf = EduCareParent.getStudentPerformance?.() || {risk:'Low',cgpa:8.1,attendance:92,stress:3};
+      let advice='';
+      if(perf.risk==='High')
+        advice=`⚠️ Your child’s results show a need for close monitoring. Encourage consistent study time and regular communication with the counselor.`;
+      else if(perf.risk==='Medium')
+        advice=`🟡 Performance is moderate. Encourage participation and ensure proper rest to reduce stress levels.`;
+      else
+        advice=`✅ Excellent progress! Maintain engagement and motivation to keep performance high.`;
+
+      document.getElementById('aiInsights').innerHTML = `
+        <h3>AI Insights & Suggestions</h3>
+        <p>${advice}</p>
+        <p style="color:#6b7280">CGPA: ${Number(perf.cgpa || 0).toFixed(1)} |
+          Attendance: ${perf.attendance || 0}% | Stress: ${perf.stress || 0}/10</p>
+      `;
+    }
+
+    if(EduCareParent.ensureParentSelected?.()) render();
+    else window.addEventListener('parent-ready', render, {once:true});
+    if(window.EduCareAdmin?.onStoreUpdated) EduCareAdmin.onStoreUpdated(render);
+  </script>
+</body>
+</html>

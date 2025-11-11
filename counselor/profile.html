@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Counselor • Profile</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <script type="module" src="../admin/educare-data-firebase.js"></script>
+
+  <style>
+    :root{--gradA:#0ea5e9;--gradB:#7c3aed;--bg:#f5f7fb;--card:#fff}
+    *{box-sizing:border-box}
+    body{margin:0;display:flex;min-height:100vh;background:var(--bg);font-family:'Poppins',sans-serif}
+    .sidebar{width:240px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:22px 12px;display:flex;flex-direction:column}
+    .brand{font-weight:600;font-size:20px;text-align:center;margin-bottom:16px}
+    .nav a{display:block;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;margin:6px 6px;transition:.2s}
+    .nav a:hover,.nav a.active{background:rgba(255,255,255,.2)}
+    .main{flex:1;padding:24px;overflow:auto}
+    h1{margin-top:0}
+    .card{background:var(--card);border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:20px;max-width:500px}
+    label{font-size:13px;color:#6b7280;display:block;margin-top:10px}
+    input{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:10px;margin-top:4px}
+    button{padding:10px 16px;border:none;border-radius:10px;background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff;cursor:pointer;margin-top:14px}
+    .danger{background:#ef4444}
+  </style>
+  <link rel="stylesheet" href="counselor-sidebar.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="students.html">Students</a>
+      <a href="risk-view.html">AI Risk View</a>
+      <a href="counseling.html">Counseling & Feedback</a>
+      <a href="hobbies.html">Hobbies</a>
+      <a href="chat.html">Communication</a>
+      <a href="reports.html">Reports & Analytics</a>
+      <a class="active" href="profile.html">Profile</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <h1>Counselor Profile</h1>
+    <div class="card">
+      <label>Name</label>
+      <input type="text" id="name" />
+      <label>Email</label>
+      <input type="email" id="email" />
+      <label>Phone</label>
+      <input type="text" id="phone" placeholder="Optional" />
+      <button id="saveBtn">Save Changes</button>
+      <button id="logoutBtn" class="danger">Logout</button>
+    </div>
+  </main>
+
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <script src="../admin/admin.js"></script>
+  <script src="counselor.js"></script>
+  <script>
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+    const phoneInput = document.getElementById('phone');
+    const saveBtn = document.getElementById('saveBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    function loadProfile(){
+      const c = EduCareCounselor.getCurrentCounselor();
+      if(!c){ EduCareCounselor.ensureCounselorSelected(); return; }
+      nameInput.value = c.name || '';
+      emailInput.value = c.email || '';
+      phoneInput.value = c.phone || '';
+    }
+
+    saveBtn.onclick = ()=>{
+      const c = EduCareCounselor.getCurrentCounselor();
+      if(!c) return;
+      EduCareAdmin.update('counselors', c.id, {
+        name: nameInput.value.trim(),
+        email: emailInput.value.trim(),
+        phone: phoneInput.value.trim()
+      });
+      alert('✅ Profile updated successfully!');
+    };
+
+    logoutBtn.onclick = ()=>{
+      if(confirm('Log out counselor session?')){
+        localStorage.removeItem('educare_current_counselor_id');
+        alert('Logged out successfully.');
+        window.location.href = '../index.html';
+      }
+    };
+
+    if(EduCareCounselor.ensureCounselorSelected()) loadProfile();
+    else window.addEventListener('counselor-ready', loadProfile, {once:true});
+  </script>
+  
+</body>
+</html>

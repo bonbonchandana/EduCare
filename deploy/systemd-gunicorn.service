@@ -1,0 +1,13 @@
+[Unit]
+Description=Gunicorn instance to serve EduCare API
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/educare
+Environment="PATH=/var/www/educare/venv/bin"
+ExecStart=/var/www/educare/venv/bin/gunicorn --workers 3 --bind unix:/var/www/educare/educare.sock model.api:app
+
+[Install]
+WantedBy=multi-user.target

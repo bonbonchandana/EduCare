@@ -1,0 +1,792 @@
+/* Parent portal theme: vibrant backdrop, subtle motion and clean cards */
+:root{
+  /* New regenerated parent palette */
+  --parent-grad-a: #5b21b6; /* deep indigo */
+  --parent-grad-b: #0ea5a4; /* teal-cyan */
+  --accent: #ff6bcb; /* neon pink */
+  --card-bg: rgba(255,255,255,0.96);
+  --muted: #556077;
+  --text: #0f1724;
+  --bg-spot-a: rgba(91,33,182,0.12);
+  --bg-spot-b: rgba(14,165,164,0.10);
+}
+
+/* Ensure all parent portal pages share the dashboard background */
+body.parent-portal{
+  background:
+    radial-gradient(1000px 500px at 8% 18%, var(--bg-spot-a), transparent),
+    radial-gradient(800px 420px at 92% 82%, var(--bg-spot-b), transparent),
+    linear-gradient(135deg, var(--parent-grad-a) 0%, rgba(43,10,80,0.85) 45%, var(--parent-grad-b) 100%) !important;
+  background-size: cover !important;
+  background-attachment: fixed !important;
+  color: var(--text) !important;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important; transition-duration:0.001ms !important}
+}
+
+body{
+  margin:0;font-family: 'Poppins',sans-serif;min-height:100vh;
+  background:
+    radial-gradient(1000px 500px at 8% 18%, var(--bg-spot-a), transparent),
+    radial-gradient(800px 420px at 92% 82%, var(--bg-spot-b), transparent),
+    linear-gradient(135deg, var(--parent-grad-a) 0%, rgba(43,10,80,0.85) 45%, var(--parent-grad-b) 100%);
+  background-size:cover;background-attachment:fixed;color:var(--text);
+}
+
+/* floating orbs */
+.parent-orbs{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.parent-orb{position:absolute;border-radius:999px;filter:blur(30px);opacity:0.9;mix-blend-mode:screen}
+.parent-orb.small{width:120px;height:120px;background:linear-gradient(90deg,#ff6bcb,#7c3aed)}
+.parent-orb.med{width:220px;height:220px;background:linear-gradient(90deg,#06b6d4,#7c3aed)}
+.parent-orb.large{width:360px;height:360px;background:linear-gradient(90deg,#0ea5a4,#5b21b6)}
+
+@keyframes floatParent{
+  0%{transform:translateY(20vh) translateX(0) scale(0.95);opacity:0.6}
+  50%{transform:translateY(-10vh) translateX(6vw) scale(1.05);opacity:0.9}
+  100%{transform:translateY(20vh) translateX(0) scale(0.95);opacity:0.6}
+}
+
+/* subtle card treatment for content */
+.card, table, .insights{background:var(--card-bg);border-radius:12px;padding:12px;box-shadow:0 12px 40px rgba(2,6,23,0.10);backdrop-filter: blur(6px)}
+
+/* Sidebar tweaks to keep contrast and alignment */
+.sidebar{background:linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));border-right:1px solid rgba(255,255,255,0.04)}
+.brand{
+  /* EduCare screen title treated like a decorative button with animated conic border */
+  --border-radius: 15px;
+  --border-width: 4px;
+  box-sizing: border-box;
+  display:inline-block;
+  position:relative;
+  padding:10px 16px;
+  border-radius:var(--border-radius);
+  background-color:#212121;
+  font-family: 'Poppins','Roboto', Arial, 'Segoe UI', sans-serif;
+  font-size:18px;
+  font-weight:700;
+  color:#fff;
+  z-index:2;
+  text-align:center;
+}
+.nav a{transition:all 220ms cubic-bezier(.2,.9,.3,1)}
+.nav a:hover{transform:translateY(-4px);box-shadow:0 12px 28px rgba(124,58,237,0.08)}
+
+/* minor utility */
+.hint{color:var(--muted);font-size:14px}
+
+@media (max-width:720px){
+  .parent-orb.large{display:none}
+}
+
+/* --- Attendance-like layout and card styles (unify parent pages) --- */
+:root{
+  --p-gradA:#4f46e5; --p-gradB:#0ea5a4; --p-card:#ffffff; --p-muted:#556077; --p-bg:#f6f8fb;
+}
+*{box-sizing:border-box}
+.parent-orbs .parent-orb{mix-blend-mode:screen}
+body.parent-portal{margin:0;display:flex;min-height:100vh;background:var(--p-bg);font-family:'Poppins',sans-serif;color:#0f172a}
+/* Modernized sidebar: sticky, frosted card, compact and interactive */
+.sidebar{
+  width:220px;
+  color:#fff;
+  padding:18px 14px;
+  display:flex;
+  flex-direction:column;
+  position:sticky;
+  top:18px;
+  height:calc(100vh - 36px);
+  border-radius:12px;
+  background: linear-gradient(180deg, rgba(91,33,182,0.95), rgba(14,165,164,0.95));
+  box-shadow: 0 18px 50px rgba(2,6,23,0.28);
+  backdrop-filter: blur(8px) saturate(1.05);
+  z-index:10;
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+/* Ensure main content sits above the decorative orbs */
+.main{position:relative;z-index:1}
+.brand{--border-radius:15px;--border-width:4px;box-sizing:border-box;display:inline-block;position:relative;padding:10px 18px;border-radius:var(--border-radius);background-color:#212121;font-family:'Poppins','Roboto',Arial,'Segoe UI',sans-serif;font-size:18px;font-weight:700;color:#fff;margin-bottom:18px;text-align:center;z-index:2}
+.brand::after{ /* animated conic-gradient border using mask to create inner cutout */
+  --m-i: linear-gradient(#000,#000);
+  --m-o: content-box, padding-box;
+  content: "";
+  position:absolute;left:0;top:0;width:100%;height:100%;padding:var(--border-width);border-radius:var(--border-radius);
+  background-image: conic-gradient(#488cfb,#29dbbc,#ddf505,#ff9f0e,#e440bb,#655adc,#488cfb);
+  -webkit-mask-image: var(--m-i), var(--m-i);
+  mask-image: var(--m-i), var(--m-i);
+  -webkit-mask-origin: var(--m-o);
+  mask-origin: var(--m-o);
+  -webkit-mask-clip: var(--m-o);
+  mask-clip: var(--m-o);
+  mask-composite: exclude;
+  -webkit-mask-composite: destination-out;
+  filter: hue-rotate(0);
+  animation: rotate-hue linear 500ms infinite;
+  animation-play-state: paused;
+  pointer-events:none;
+}
+.brand:hover::after{animation-play-state:running}
+
+@keyframes rotate-hue{to{filter:hue-rotate(1turn)}}
+
+/* radio-container navigation - modern list style */
+.radio-container{display:flex;flex-direction:column;position:relative;padding-left:0.25rem;gap:6px}
+.radio-container label{cursor:pointer;padding:10px 12px;border-radius:10px;display:flex;align-items:center;gap:10px;color:rgba(255,255,255,0.92);font-weight:600;transition:transform .18s ease,background .18s ease,box-shadow .18s ease}
+.radio-container label::before{content:'';width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.12);flex:0 0 10px;box-shadow:inset 0 -2px 4px rgba(0,0,0,0.18)}
+.radio-container label:hover{transform:translateX(6px);background:linear-gradient(90deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));}
+.radio-container input:checked + label{color:#fff;background:linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));box-shadow:0 12px 30px rgba(0,0,0,0.12);transform:translateX(6px)}
+.radio-container input:checked + label::before{background:var(--main-color);box-shadow:0 4px 18px rgba(0,0,0,0.18)}
+
+/* glider indicator: thin vertical bar with soft highlight */
+.radio-container .glider-container{position:absolute;left:8px;top:12px;bottom:12px;width:6px;display:flex;flex-direction:column;align-items:center}
+.radio-container .glider-container .glider{width:6px;border-radius:6px;background:linear-gradient(180deg,var(--main-color),rgba(255,255,255,0.08));box-shadow:0 8px 20px rgba(0,0,0,0.12);transition:transform .45s cubic-bezier(.2,.9,.3,1)}
+.radio-container input:nth-of-type(1):checked ~ .glider-container .glider{transform:translateY(0)}
+.radio-container input:nth-of-type(2):checked ~ .glider-container .glider{transform:translateY(100%)}
+.radio-container input:nth-of-type(3):checked ~ .glider-container .glider{transform:translateY(200%)}
+.radio-container input:nth-of-type(4):checked ~ .glider-container .glider{transform:translateY(300%)}
+.radio-container input:nth-of-type(5):checked ~ .glider-container .glider{transform:translateY(400%)}
+.radio-container input:nth-of-type(6):checked ~ .glider-container .glider{transform:translateY(500%)}
+
+/* make sidebar responsive and collapse slightly on small screens */
+@media (max-width:880px){
+  .sidebar{position:relative;top:0;height:auto;border-radius:0;width:100%;display:flex;flex-direction:row;align-items:center;padding:10px}
+  .radio-container{flex-direction:row;gap:8px;overflow:auto}
+  .radio-container .glider-container{display:none}
+  .brand::after{display:none}
+}
+.main{flex:1;padding:24px;overflow:auto}
+
+/* tables and cards consistent with attendance page */
+table{width:100%;border-collapse:collapse;margin-top:18px;background:var(--p-card);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08);overflow:hidden}
+th,td{padding:12px;text-align:left;border-bottom:1px solid #f1f5f9}
+th{background:#f3f4f6;font-weight:600}
+tr:last-child td{border:none}
+canvas{margin-top:24px;background:#fff;border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:14px}
+.insights{background:#fff;border-radius:16px;padding:16px;margin-top:24px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+
+/* card defaults (used across parent pages) */
+.card{background:var(--p-card);border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:18px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin:18px 0}
+.hint{color:var(--p-muted);font-size:14px}
+
+@media (max-width:720px){
+  .sidebar{display:none}
+  body.parent-portal{display:block}
+  .main{padding:14px}
+}
+
+/* small utilities to override inline color styles if needed */
+.muted{color:var(--p-muted) !important}
+.accent-btn{background:linear-gradient(90deg,var(--p-gradA),var(--p-gradB));color:#fff;padding:8px 12px;border-radius:8px;border:none}
+
+/* Sidebar radio-style glider (from user's template) */
+.radio-container{
+  --main-color: #f7e479;
+  --main-color-opacity: #f7e4791c;
+  --total-radio: 6;
+  display:flex;flex-direction:column;position:relative;padding-left:0.5rem;
+}
+.radio-container input{cursor:pointer;appearance:none}
+.radio-container .glider-container{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(0deg,rgba(0,0,0,0) 0%, rgba(27,27,27,1) 50%, rgba(0,0,0,0) 100%);width:1px}
+.radio-container .glider-container .glider{position:relative;height:calc(100% / var(--total-radio));width:100%;background:linear-gradient(0deg,rgba(0,0,0,0) 0%, var(--main-color) 50%, rgba(0,0,0,0) 100%);transition:transform 0.5s cubic-bezier(0.37,1.95,0.66,0.56)}
+.radio-container .glider-container .glider::before{content:'';position:absolute;height:60%;width:300%;top:50%;transform:translateY(-50%);background:var(--main-color);filter:blur(10px)}
+.radio-container .glider-container .glider::after{content:'';position:absolute;left:0;height:100%;width:150px;background:linear-gradient(90deg,var(--main-color-opacity) 0%, rgba(0,0,0,0) 100%)}
+.radio-container label{cursor:pointer;padding:1rem;position:relative;color:grey;transition:all .3s ease-in-out;display:block}
+.radio-container input:checked + label{color:var(--main-color)}
+.radio-container input:nth-of-type(1):checked ~ .glider-container .glider{transform:translateY(0)}
+.radio-container input:nth-of-type(2):checked ~ .glider-container .glider{transform:translateY(100%)}
+.radio-container input:nth-of-type(3):checked ~ .glider-container .glider{transform:translateY(200%)}
+.radio-container input:nth-of-type(4):checked ~ .glider-container .glider{transform:translateY(300%)}
+.radio-container input:nth-of-type(5):checked ~ .glider-container .glider{transform:translateY(400%)}
+.radio-container input:nth-of-type(6):checked ~ .glider-container .glider{transform:translateY(500%)}
+
+/* ensure labels inside sidebar look like links */
+.sidebar .radio-container label{color:rgba(255,255,255,0.9);font-weight:600}
+.sidebar .radio-container input:checked + label{color:var(--main-color);text-shadow:0 2px 8px rgba(247,228,121,0.2)}
+
+/* Animated glowing gradient border for cards and buttons */
+.glow-wrap, .card{position:relative;z-index:0}
+/* Disable the rotating glow pseudo-element (we'll use hover glow on cards instead) */
+.card::before, .accent-btn::before, .glow-wrap::before{
+  display: none !important;
+}
+
+/* A subtle inner layer to preserve the card background above the glow */
+.card::after, .glow-wrap::after{
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: 12px;
+  background: var(--p-card);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Buttons need slightly different radii */
+.accent-btn::before{
+  border-radius: 12px;
+  top: -4px; left: -4px; right: -4px; bottom: -4px;
+  filter: blur(12px);
+}
+
+@keyframes glow-rotate{
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Hover: intensify glow */
+.card:hover::before, .accent-btn:hover::before, .glow-wrap:hover::before{
+  filter: blur(22px) saturate(1.05);
+  opacity: 1;
+  animation-duration: 4s;
+}
+
+/* Respect user's reduced motion preference */
+@media (prefers-reduced-motion: reduce){
+  .card::before, .accent-btn::before, .glow-wrap::before{ animation: none; transform: none; }
+}
+
+/* Dashboard-specific card styles provided by user */
+.dash-card {
+  width: 190px;
+  height: 254px;
+  background-image: linear-gradient(163deg, #00ff75 0%, #3700ff 100%);
+  border-radius: 20px;
+  transition: all .3s;
+  display:flex;flex-direction:column;justify-content:center;padding:16px;color:#fff;
+}
+.dash-card2 {
+  width: 190px;
+  height: 254px;
+  background-color: #1a1a1a;
+  border-radius: 20px;
+  transition: all .2s;
+  display:flex;flex-direction:column;justify-content:center;padding:16px;color:#fff;
+}
+.dash-card2:hover{
+  transform: scale(0.98);
+  border-radius: 20px;
+}
+.dash-card:hover{
+  box-shadow: 0px 0px 30px 1px rgba(0, 255, 117, 0.30);
+  transform: translateY(-6px);
+}
+
+/* Dashboard: enhanced card hover effects, heading glow, and emphasis for risk/stress */
+body.page-dashboard .cards .card{
+  position:relative;
+  overflow:visible;
+  transition:transform .28s cubic-bezier(.2,.9,.3,1),box-shadow .28s ease,filter .28s ease,background-color .22s ease,color .18s ease;
+  border-radius:14px;
+  padding:18px 20px;
+  min-height:120px;
+  display:flex;flex-direction:column;justify-content:center;gap:8px;
+  color: #fff; /* most cards use light text over gradients */
+  will-change:transform,box-shadow;
+}
+
+/* Ambient glow layer: subtle, animated using pseudo-element */
+body.page-dashboard .cards .card::before{
+  content:'';position:absolute;inset:0;border-radius:14px;z-index:-1;pointer-events:none;
+  background: radial-gradient(600px 200px at 10% 10%, rgba(255,255,255,0.04), transparent),
+              radial-gradient(400px 160px at 90% 90%, rgba(0,0,0,0.06), transparent);
+  opacity:0.6;filter:blur(26px);transform:translateZ(0) scale(1);transition:opacity .36s ease,transform .36s ease,filter .36s ease;
+}
+
+/* Per-card base gradients to make each card distinct */
+body.page-dashboard .cards .card:nth-child(1){
+  background: linear-gradient(135deg,#4f46e5 0%, #60a5fa 100%);
+}
+body.page-dashboard .cards .card:nth-child(2){
+  background: linear-gradient(135deg,#10b981 0%, #34d399 100%);
+}
+body.page-dashboard .cards .card:nth-child(3){
+  background: linear-gradient(135deg,#f59e0b 0%, #fb923c 100%);
+}
+body.page-dashboard .cards .card:nth-child(4){
+  background: linear-gradient(135deg,#ef4444 0%, #f97316 100%);
+}
+
+/* Card headings (h3) get a subtle neon-ish text-glow effect that intensifies on hover */
+body.page-dashboard .cards .card h3{
+  margin:0;font-size:13px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;opacity:0.95;color:rgba(255,255,255,0.95);
+  text-shadow:0 2px 8px rgba(0,0,0,0.15);
+  transition:text-shadow .22s ease,transform .22s ease,color .18s ease;
+}
+
+/* small numeric/value text more prominent */
+body.page-dashboard .cards .card p{font-size:24px;font-weight:700;margin:6px 0 0;color:rgba(255,255,255,0.98)}
+
+/* Hover state: lift, stronger glow, and a shifting ambient gradient */
+body.page-dashboard .cards .card:hover{
+  transform:translateY(-12px) scale(1.03);
+  box-shadow:0 30px 80px rgba(2,6,23,0.28), 0 8px 40px rgba(0,0,0,0.18);
+}
+body.page-dashboard .cards .card:hover::before{
+  opacity:1;filter:blur(36px) saturate(1.1);transform:scale(1.03);
+}
+
+/* Individual hover accent overlays to differentiate hover colour for each card */
+body.page-dashboard .cards .card:nth-child(1):hover::after,
+body.page-dashboard .cards .card:nth-child(2):hover::after,
+body.page-dashboard .cards .card:nth-child(3):hover::after,
+body.page-dashboard .cards .card:nth-child(4):hover::after{
+  content:'';position:absolute;inset:0;border-radius:14px;z-index:0;pointer-events:none;mix-blend-mode:screen;opacity:0.16;transition:opacity .28s ease,transform .28s ease;
+}
+body.page-dashboard .cards .card:nth-child(1):hover::after{background:linear-gradient(120deg, rgba(99,102,241,0.18), rgba(59,130,246,0.12));}
+body.page-dashboard .cards .card:nth-child(2):hover::after{background:linear-gradient(120deg, rgba(16,185,129,0.16), rgba(34,197,94,0.12));}
+body.page-dashboard .cards .card:nth-child(3):hover::after{background:linear-gradient(120deg, rgba(245,158,11,0.16), rgba(251,146,60,0.12));}
+body.page-dashboard .cards .card:nth-child(4):hover::after{background:linear-gradient(120deg, rgba(239,68,68,0.16), rgba(245,158,11,0.12));}
+
+/* Heading text glow intensifies on card hover */
+body.page-dashboard .cards .card:hover h3{transform:translateY(-3px);text-shadow:0 10px 30px rgba(255,255,255,0.08), 0 6px 24px rgba(0,0,0,0.18)}
+
+/* Subtle periodic breathing for non-hovered cards to feel dynamic without being distracting */
+@keyframes card-breathe{0%{transform:translateY(0) scale(1)}50%{transform:translateY(-4px) scale(1.005)}100%{transform:translateY(0) scale(1)} }
+body.page-dashboard .cards .card{animation:card-breathe 8s ease-in-out infinite;animation-delay:calc(var(--i,0) * 120ms)}
+
+/* reduce motion preference respects */
+@media (prefers-reduced-motion: reduce){
+  body.page-dashboard .cards .card{animation:none;transition:none}
+}
+body.page-dashboard .cards .card:hover{transform:translateY(-10px) scale(1.02)}
+
+/* multi-color glows per card using nth-child */
+body.page-dashboard .cards .card:nth-child(1):hover{box-shadow:0 18px 40px rgba(99,102,241,0.20), 0 0 60px rgba(59,130,246,0.12)}
+body.page-dashboard .cards .card:nth-child(2):hover{box-shadow:0 18px 40px rgba(16,185,129,0.16), 0 0 60px rgba(5,150,105,0.12)}
+body.page-dashboard .cards .card:nth-child(3):hover{box-shadow:0 18px 40px rgba(245,158,11,0.16), 0 0 60px rgba(245,158,11,0.12)}
+body.page-dashboard .cards .card:nth-child(4):hover{box-shadow:0 18px 40px rgba(239,68,68,0.16), 0 0 60px rgba(239,68,68,0.12)}
+
+/* subtle animated gradient border using box-shadow layering on focus/hover */
+body.page-dashboard .cards .card::after{content:'';pointer-events:none;position:absolute;inset:-6px;border-radius:18px;opacity:0;transition:opacity .28s ease,transform .28s ease}
+body.page-dashboard .cards .card:hover::after{opacity:1;transform:translateY(-2px)}
+
+/* heading glow: subtle animated highlight on hover */
+body.page-dashboard h1{
+  display:inline-block;
+  padding:8px 12px;
+  border-radius:10px;
+  transition:text-shadow .28s ease,transform .28s ease,background-color .18s ease,color .18s ease;
+  /* default heading highlight (subtle light panel) */
+  color: #ffffff;
+  background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+  box-shadow: 0 6px 18px rgba(2,6,23,0.06);
+}
+/* Hover: change heading colour to a distinct accent and shift background tint */
+body.page-dashboard h1:hover{
+  transform:translateY(-3px);
+  text-shadow:0 10px 30px rgba(2,6,23,0.18);
+  color: var(--accent);
+  background: linear-gradient(90deg, rgba(255,107,203,0.12), rgba(124,58,237,0.08));
+}
+
+/* Dashboard intro: make the welcome/summary text more visible and readable */
+body.page-dashboard .dashboard-intro{
+  color: rgba(255,255,255,0.94); /* high contrast against gradient */
+  font-size: 16px; /* slightly larger for readability */
+  font-weight: 500; /* stronger weight */
+  margin-bottom: 14px;
+  max-width: 920px; /* keep line length comfortable */
+  line-height: 1.5;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.28); /* subtle lift from background */
+  opacity: 0.98;
+}
+
+@media (max-width:720px){
+  body.page-dashboard .dashboard-intro{font-size:15px}
+}
+
+/* Emphasis: risk & stress red when high */
+.risk.high, #stressValue.high{color:#dc2626;font-weight:700}
+#stressValue{transition:color .2s ease,transform .18s ease}
+#stressValue.high{transform:translateY(-1px)}
+
+/* make risk and stress visually clearer with small caps label */
+.card h3{font-size:13px;letter-spacing:0.2px;color:var(--p-muted);text-transform:capitalize}
+.card p{font-size:22px}
+
+/* heading highlight shimmer (animated subtle) */
+@keyframes shimmer{0%{filter:brightness(1)}50%{filter:brightness(1.08)}100%{filter:brightness(1)}}
+body.page-dashboard h1.glow{animation:shimmer 2.6s ease-in-out infinite}
+
+/* Page-scoped rules: ensure chat page main area is a column flex so header/messages/send box align */
+body.page-chat .main{display:flex;flex-direction:column;flex:1;min-height:0}
+body.page-chat .messages{flex:1;min-height:0;overflow:auto}
+body.page-chat .sendBox{flex:0}
+
+/* Make chat page header clearly visible and separate from rainbow global H1 style */
+body.page-chat .page-header{width:100%;margin-bottom:12px}
+body.page-chat .page-header > div:first-child h1{
+  margin:0;
+  padding:12px 14px;
+  border-radius:10px;
+  background:var(--p-card);
+  color:var(--text);
+  display:inline-block;
+  box-shadow:0 8px 28px rgba(2,6,23,0.08);
+}
+/* ensure the notifications button doesn't overlap messages on small screens */
+body.page-chat .header-controls{display:flex;align-items:center}
+body.page-chat .messages{margin-top:6px;padding:12px}
+
+/* Improve messages visibility: stronger card background, clear bubble contrast, and ensure animations don't hide content */
+body.page-chat .messages{
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,250,251,0.98));
+  border-radius:12px;
+  padding:18px;
+  box-shadow:0 12px 36px rgba(2,6,23,0.06);
+  min-height:360px; /* ensures visible area even when empty */
+  overflow:auto;
+  position:relative;
+  z-index:2;
+}
+
+/* Force message bubbles to be visible even if animations are disabled or delayed */
+body.page-chat .msg{opacity:1 !important;transform:none !important;animation:none !important}
+
+/* Clear bubble visuals for sent/received */
+body.page-chat .from-them{background:#ffffff;border:1px solid rgba(15,23,42,0.06);box-shadow:0 6px 18px rgba(2,6,23,0.04);border-radius:18px 18px 18px 6px;padding:12px 14px;color:var(--text);max-width:70%;display:inline-block}
+body.page-chat .from-me{background:linear-gradient(135deg,#7b2ff7,#f107a3);box-shadow:0 10px 30px rgba(123,47,247,0.12);border-radius:18px 18px 6px 18px;padding:12px 14px;color:#fff;font-weight:600;max-width:70%;display:inline-block}
+
+/* timestamps and small meta should be clearly readable */
+body.page-chat .msg small{display:block;font-size:12px;color:rgba(15,23,42,0.5);margin-top:6px}
+
+/* ensure sendBox doesn't overlap messages on small screens */
+@media (max-width:520px){
+  body.page-chat .messages{min-height:300px;padding:10px}
+}
+
+/* Stronger chat pane visuals so parent chat matches student/counselor look */
+body.page-chat .header{padding:16px;background:#fff;border-bottom:1px solid #e5e7eb;font-weight:600}
+body.page-chat .messages{background:var(--p-card);border-radius:12px;padding:16px;box-shadow:0 6px 18px rgba(0,0,0,0.06);margin:12px 0}
+body.page-chat .msg{max-width:70%;padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.4}
+body.page-chat .from-me{align-self:flex-end;background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff}
+body.page-chat .from-them{align-self:flex-start;background:#fff;color:#111;border:1px solid #e5e7eb}
+body.page-chat .sendBox{position:sticky;bottom:0;background:var(--p-card);padding:12px;border-top:1px solid #e5e7eb;box-shadow:0 -6px 20px rgba(2,6,23,0.04);border-radius:8px}
+
+/* Ensure message list children can overflow correctly inside flex container */
+body.page-chat .messages > *{flex:0}
+
+/* Enhanced bubble shapes, animation and input/button styling */
+body.page-chat .msg{display:inline-block;line-height:1.35;margin:6px 0;opacity:0;transform:translateY(8px);animation:chat-pop .22s cubic-bezier(.2,.9,.3,1) forwards}
+@keyframes chat-pop{to{opacity:1;transform:none}}
+
+/* Received (left) bubble */
+body.page-chat .from-them{background:#fff;border:1px solid rgba(15,23,42,0.06);box-shadow:0 6px 18px rgba(2,6,23,0.04);border-radius:18px 18px 18px 6px;padding:12px 14px;color:var(--text)}
+
+/* Sent (right) bubble */
+body.page-chat .from-me{background:linear-gradient(135deg,var(--p-gradA),var(--p-gradB));box-shadow:0 10px 30px rgba(99,102,241,0.12);border-radius:18px 18px 6px 18px;padding:12px 14px;color:#fff;font-weight:600}
+
+/* subtle timestamp / meta (if added later) */
+body.page-chat .msg small{display:block;font-size:11px;color:var(--p-muted);margin-top:6px}
+
+/* Input: pill style with subtle shadow and smooth focus */
+body.page-chat .sendBox input{flex:1;padding:12px 16px;border-radius:999px;border:1px solid #e6e9ef;background:linear-gradient(180deg,#fff,#fbfbfd);box-shadow:0 6px 20px rgba(2,6,23,0.04);transition:all .18s ease}
+body.page-chat .sendBox input:focus{outline:none;box-shadow:0 8px 28px rgba(99,102,241,0.12);border-color:rgba(99,102,241,0.35)}
+
+/* Send button: animated gradient with icon-like arrow */
+body.page-chat .sendBox button{margin-left:10px;padding:10px 14px;border-radius:999px;border:none;background:linear-gradient(90deg,#8b5cf6,#06b6d4);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;min-width:56px;box-shadow:0 10px 30px rgba(99,102,241,0.12);transition:transform .12s ease,box-shadow .12s ease}
+body.page-chat .sendBox button:hover{transform:translateY(-3px);box-shadow:0 18px 40px rgba(99,102,241,0.16)}
+body.page-chat .sendBox button:active{transform:translateY(-1px)}
+body.page-chat .sendBox button::after{content:'➤';font-weight:700}
+
+/* Responsive: make send button compact on small screens */
+@media (max-width:520px){
+  body.page-chat .sendBox input{padding:10px}
+  body.page-chat .sendBox button{min-width:48px;padding:8px}
+  body.page-chat .messages{padding:10px}
+}
+
+/* Profile page: segmented form and glowing actions */
+body.page-profile h1{color:var(--text);margin-top:0}
+body.page-profile .card{padding:14px;margin-bottom:18px;border-radius:12px;display:block}
+body.page-profile .form-segments{display:flex;gap:12px;align-items:flex-start}
+body.page-profile .form-segments .segment{flex:1;display:flex;flex-direction:column;gap:6px}
+body.page-profile .form-segments .segment label{font-size:13px;color:var(--p-muted);font-weight:600}
+body.page-profile .form-segments .segment input{padding:10px 12px;border-radius:10px;border:1px solid #e6e9ef;background:linear-gradient(180deg,#fff,#fbfbfd);box-shadow:0 6px 20px rgba(2,6,23,0.04)}
+body.page-profile .actions{display:flex;gap:10px;justify-content:flex-start;margin-top:12px}
+
+/* Accent button glow for profile actions */
+body.page-profile .accent-btn{background:linear-gradient(90deg,var(--p-gradA),var(--p-gradB));color:#fff;padding:10px 14px;border-radius:999px;border:none;cursor:pointer;box-shadow:0 10px 30px rgba(75,0,130,0.14);transition:transform .12s ease,box-shadow .12s ease}
+body.page-profile .accent-btn:hover{transform:translateY(-3px);box-shadow:0 18px 40px rgba(75,0,130,0.18)}
+body.page-profile .accent-btn.danger{background:linear-gradient(90deg,#ef4444,#e11d48);box-shadow:0 10px 30px rgba(225,29,72,0.12)}
+
+/* Slightly stronger linked info contrast on profile page */
+body.page-profile #linkedInfo{color:var(--text);margin-top:18px}
+
+@media (max-width:860px){
+  body.page-profile .form-segments{flex-direction:column}
+}
+
+/* Linked information card used on profile page */
+body.page-profile #linkedInfo{margin-top:18px}
+body.page-profile #linkedInfo .linked-card{background:linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.96));padding:16px;border-radius:12px;box-shadow:0 12px 36px rgba(2,6,23,0.06);max-width:760px}
+body.page-profile #linkedInfo .linked-card h3{margin:0 0 10px;color:var(--p-gradA)}
+body.page-profile #linkedInfo .linked-row{display:flex;gap:12px;align-items:center;padding:8px 0;border-top:1px solid #f3f4f6}
+body.page-profile #linkedInfo .linked-row:first-of-type{border-top:none}
+body.page-profile #linkedInfo .label{width:120px;font-weight:700;color:var(--p-muted)}
+body.page-profile #linkedInfo .value{color:var(--text)}
+body.page-profile #linkedInfo .value .muted{color:var(--p-muted);font-weight:600;margin-left:6px}
+
+/* --- Academic page: glowing title, interactive marks table, and distinct graph card --- */
+body.page-academic h1{color:#fff;margin-top:0;display:inline-block;padding:6px 10px;border-radius:8px}
+
+/* Continuous title glow */
+@keyframes academic-title-glow{
+  0%{text-shadow:0 0 6px rgba(99,102,241,0.45)}
+  50%{text-shadow:0 0 26px rgba(99,102,241,0.95)}
+  100%{text-shadow:0 0 6px rgba(99,102,241,0.45)}
+}
+body.page-academic h1{animation:academic-title-glow 3s ease-in-out infinite}
+
+/* Marks table: distinct coloured surface with glow and interactive hover */
+#perfTable.marks-glow{
+  width:100%;border-collapse:separate;border-spacing:0;margin-top:18px;border-radius:12px;overflow:hidden;
+  /* light orange surface for marks table */
+  background: linear-gradient(180deg, #fff7ed, #fff1e6);
+  box-shadow:0 28px 80px rgba(15,23,42,0.08), 0 6px 28px rgba(249,115,22,0.06);
+  color: #1f2937; /* darker text for contrast */
+}
+
+#perfTable.marks-glow thead th{background:linear-gradient(90deg, rgba(249,115,22,0.06), rgba(251,146,60,0.03));color:#92400e;padding:12px;font-weight:700}
+#perfTable.marks-glow tbody td{padding:12px;border-bottom:1px solid rgba(15,23,42,0.04);background:transparent;color:var(--text)}
+
+/* Row hover: subtle lift + left accent glow */
+#perfTable.marks-glow tbody tr:hover td{background:linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0));transform:translateX(0);}
+/* left accent glow on hover (orange) */
+#perfTable.marks-glow tbody tr:hover{box-shadow:inset 6px 0 30px rgba(249,115,22,0.10);transform:translateX(2px)}
+
+/* Make the Total (%) column stand out slightly */
+#perfTable.marks-glow tbody td:last-child{font-weight:700;text-align:right}
+
+/* Graph container: different colour and card-like surface */
+.graph-wrap{margin-top:18px;padding:14px;border-radius:12px;background:linear-gradient(180deg,#fff0f6,#fff4fb);box-shadow:0 18px 60px rgba(245,158,11,0.04);position:relative;overflow:hidden}
+.graph-wrap canvas{display:block;width:100%;height:240px;border-radius:8px;background:transparent}
+
+/* hover: pink ambient glow and slight lift */
+.graph-wrap::after{content:'';position:absolute;inset:0;border-radius:12px;pointer-events:none;mix-blend-mode:screen;opacity:0;transition:opacity .28s ease,transform .28s ease,filter .28s ease}
+.graph-wrap:hover{transform:translateY(-6px);box-shadow:0 36px 100px rgba(251,113,133,0.12)}
+.graph-wrap:hover::after{opacity:1;background:radial-gradient(600px 200px at 20% 20%, rgba(251,113,133,0.12), transparent),radial-gradient(360px 120px at 80% 80%, rgba(255,182,193,0.08), transparent);filter:blur(18px)}
+
+/* Marks table special glow (alternate) for emphasis — use a warmer hue for the left accent */
+#perfTable.marks-glow tbody tr:nth-child(odd):hover{box-shadow:inset 6px 0 30px rgba(250,204,21,0.06)}
+#perfTable.marks-glow tbody tr:nth-child(even):hover{box-shadow:inset 6px 0 30px rgba(99,102,241,0.06)}
+
+/* Ensure readability on small screens */
+@media (max-width:720px){
+  #perfTable.marks-glow thead{display:none}
+  #perfTable.marks-glow tbody td{display:block;padding:10px;border-bottom:1px solid rgba(255,255,255,0.03)}
+  .graph-wrap canvas{height:220px}
+}
+
+/* --- Attendance page: orange table and vibrant green graph --- */
+body.page-attendance h1{color:#fff;margin-top:0;display:inline-block;padding:6px 10px;border-radius:8px}
+
+/* Attendance table: light-orange surface and orange hover accent */
+#attTable.att-glow{
+  width:100%;border-collapse:separate;border-spacing:0;margin-top:18px;border-radius:12px;overflow:hidden;
+  background: linear-gradient(180deg,#fff7ed,#fff4eb);
+  box-shadow:0 28px 80px rgba(15,23,42,0.06), 0 8px 30px rgba(249,115,22,0.06);
+  color:#1f2937;
+}
+#attTable.att-glow thead th{background:linear-gradient(90deg, rgba(249,115,22,0.06), rgba(250,204,21,0.03));color:#92400e;padding:12px;font-weight:700}
+#attTable.att-glow tbody td{padding:12px;border-bottom:1px solid rgba(15,23,42,0.04);background:transparent;color:var(--text)}
+
+/* Hover: orange left accent and subtle lift */
+#attTable.att-glow tbody tr:hover td{background:linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0));}
+#attTable.att-glow tbody tr:hover{box-shadow:inset 6px 0 30px rgba(249,115,22,0.10);transform:translateX(2px)}
+
+/* Vibrant green graph card */
+.green-graph{margin-top:18px;padding:14px;border-radius:12px;background:linear-gradient(180deg,#ecfdf5,#dcfce7);box-shadow:0 22px 70px rgba(16,185,129,0.08);position:relative;overflow:hidden}
+.green-graph canvas{display:block;width:100%;height:220px;border-radius:8px;background:transparent}
+.green-graph::after{content:'';position:absolute;inset:0;border-radius:12px;pointer-events:none;mix-blend-mode:screen;opacity:0;transition:opacity .28s ease,transform .28s ease,filter .28s ease}
+.green-graph:hover{transform:translateY(-6px);box-shadow:0 36px 110px rgba(16,185,129,0.14)}
+.green-graph:hover::after{opacity:1;background:radial-gradient(600px 200px at 20% 20%, rgba(16,185,129,0.10), transparent),radial-gradient(360px 120px at 80% 80%, rgba(34,197,94,0.06), transparent);filter:blur(18px)}
+
+@media (max-width:720px){
+  #attTable.att-glow thead{display:none}
+  #attTable.att-glow tbody td{display:block;padding:10px;border-bottom:1px solid rgba(15,23,42,0.04)}
+  .green-graph canvas{height:180px}
+}
+
+/* Attendance: title and intro glow animations */
+@keyframes attendance-title-glow{
+  0%{text-shadow:0 0 6px rgba(16,185,129,0.35)}
+  50%{text-shadow:0 0 28px rgba(16,185,129,0.95)}
+  100%{text-shadow:0 0 6px rgba(16,185,129,0.35)}
+}
+@keyframes attendance-intro-glow{
+  0%{text-shadow:0 0 2px rgba(16,185,129,0.12);opacity:0.95}
+  50%{text-shadow:0 0 10px rgba(16,185,129,0.28);opacity:1}
+  100%{text-shadow:0 0 2px rgba(16,185,129,0.12);opacity:0.95}
+}
+
+body.page-attendance h1{animation:attendance-title-glow 3s ease-in-out infinite}
+body.page-attendance .attendance-intro{color:var(--text);font-size:15px;line-height:1.45;margin-bottom:12px;animation:attendance-intro-glow 3.4s ease-in-out infinite}
+
+@media (prefers-reduced-motion: reduce){
+  body.page-attendance h1, body.page-attendance .attendance-intro{animation:none;text-shadow:none}
+}
+
+/* --- Counseling page: dark yellow table + purple glowing insights card --- */
+body.page-counseling h1{color:#fff;margin-top:0;display:inline-block;padding:6px 10px;border-radius:8px}
+/* Counseling title + intro: high contrast + continuous purple glow */
+@keyframes counseling-title-glow{
+  0%{text-shadow:0 0 6px rgba(124,58,237,0.28)}
+  50%{text-shadow:0 0 28px rgba(124,58,237,0.95)}
+  100%{text-shadow:0 0 6px rgba(124,58,237,0.28)}
+}
+@keyframes counseling-intro-glow{
+  0%{text-shadow:0 0 2px rgba(124,58,237,0.10);opacity:0.95}
+  50%{text-shadow:0 0 12px rgba(124,58,237,0.22);opacity:1}
+  100%{text-shadow:0 0 2px rgba(124,58,237,0.10);opacity:0.95}
+}
+
+body.page-counseling h1{color:#ffffff;animation:counseling-title-glow 3s ease-in-out infinite}
+body.page-counseling .counseling-intro{color:rgba(255,255,255,0.92);font-size:15px;line-height:1.5;margin-bottom:12px;animation:counseling-intro-glow 3.6s ease-in-out infinite}
+
+@media (prefers-reduced-motion: reduce){
+  body.page-counseling h1, body.page-counseling .counseling-intro{animation:none;text-shadow:none}
+}
+
+/* Dark yellow shaded table */
+#sessionTable.counseling-table{
+  width:100%;border-collapse:separate;border-spacing:0;margin-top:18px;border-radius:12px;overflow:hidden;
+  background: linear-gradient(180deg,#fff8e1,#fff3cc); /* light yellow base */
+  box-shadow:0 22px 60px rgba(15,23,42,0.06), inset 0 1px 0 rgba(255,255,255,0.6);
+  color:#1f2937;
+}
+#sessionTable.counseling-table thead th{background:linear-gradient(90deg, rgba(250,204,21,0.06), rgba(249,115,22,0.03));color:#92400e;padding:12px;font-weight:700}
+#sessionTable.counseling-table tbody td{padding:12px;border-bottom:1px solid rgba(15,23,42,0.04);background:transparent;color:var(--text)}
+
+/* Row hover: darker yellow shaded accent and subtle lift */
+#sessionTable.counseling-table tbody tr:hover td{background:linear-gradient(90deg, rgba(255,249,230,0.5), rgba(255,249,230,0.2));}
+#sessionTable.counseling-table tbody tr:hover{box-shadow:inset 6px 0 30px rgba(250,204,21,0.10);transform:translateX(2px)}
+
+/* Purple glowing insights card */
+.purple-insights{margin-top:18px;padding:16px;border-radius:12px;background:linear-gradient(180deg,#f5f3ff,#fbf8ff);color:#111;box-shadow:0 20px 80px rgba(124,58,237,0.08);position:relative;overflow:hidden}
+.purple-insights h3{margin-top:0;color:#5b21b6}
+.purple-insights p{color:var(--p-muted)}
+.purple-insights::before{content:'';position:absolute;inset:-20%;background:radial-gradient(600px 200px at 10% 10%, rgba(124,58,237,0.10), transparent),radial-gradient(400px 140px at 90% 90%, rgba(255,107,203,0.04), transparent);filter:blur(24px);opacity:0;transition:opacity .28s ease}
+.purple-insights:hover::before{opacity:1}
+
+@media (prefers-reduced-motion: reduce){
+  .purple-insights::before{display:none}
+}
+
+/* Global: rainbow animated titles for all parent pages */
+body.parent-portal h1{
+  background: linear-gradient(90deg,#ff0044,#ff6b00,#ffdc00,#00d084,#00a3ff,#6b00ff);
+  background-size:200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  display:inline-block;
+  animation: rainbow-shift 6s linear infinite;
+  transition:transform .18s ease;
+}
+@keyframes rainbow-shift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+/* Make titles pop on hover slightly */
+body.parent-portal h1:hover{transform:translateY(-3px)}
+
+@media (prefers-reduced-motion: reduce){
+  body.parent-portal h1{animation:none}
+}
+
+/* Ensure logout button matches sidebar/nav styling even when placed in main */
+#logoutBtn, .logout-btn{
+  display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:none;cursor:pointer;font-weight:700;
+  background:linear-gradient(90deg,var(--p-gradA),var(--p-gradB));color:#fff;box-shadow:0 12px 36px rgba(2,6,23,0.12);transition:transform .14s ease,box-shadow .14s ease,opacity .12s ease;
+}
+#logoutBtn:hover, .logout-btn:hover{transform:translateY(-3px);box-shadow:0 20px 56px rgba(2,6,23,0.18)}
+#logoutBtn:active, .logout-btn:active{transform:translateY(-1px)}
+
+/* If logout button is placed inside the sidebar, make it full-width and match nav labels */
+.sidebar #logoutBtn, .sidebar .logout-btn{width:100%;justify-content:flex-start;padding-left:14px;background:transparent;border-radius:8px;color:rgba(255,255,255,0.95);box-shadow:none}
+.sidebar #logoutBtn:hover, .sidebar .logout-btn:hover{background:linear-gradient(90deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02));transform:translateX(6px)}
+
+/* Notification button (template-inspired) */
+.notif-button{
+  width:10em;
+  position:relative;
+  height:3.5em;
+  border:3px ridge #149CEA;
+  outline:none;
+  background-color:transparent;
+  color:#fff;
+  transition: all 0.6s ease;
+  border-radius:0.3em;
+  font-size:16px;
+  font-weight:700;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:0 12px;
+}
+.notif-button:focus{box-shadow:0 6px 22px rgba(20,156,234,0.18);}
+.notif-button .notif-icon{font-size:1.25rem;line-height:1}
+
+.notif-button::after{
+  content:"";
+  position:absolute;
+  top:-10px;
+  left:3%;
+  width:95%;
+  height:20%;
+  background-color:#88e1f7;
+  transition:transform .45s ease,opacity .45s ease;
+  transform-origin:center;
+  border-radius:3px;
+  z-index:0;
+}
+.notif-button::before{
+  content:"";
+  transform-origin:center;
+  position:absolute;
+  top:80%;
+  left:3%;
+  width:95%;
+  height:20%;
+  background-color:#88e1f7;
+  transition:transform .45s ease,opacity .45s ease;
+  border-radius:3px;
+  z-index:0;
+}
+.notif-button:hover::before, .notif-button:hover::after{transform:scale(0);opacity:0}
+
+/* When showing text-only state (icon removed), center text and slightly change background */
+.notif-button.text-only{background:linear-gradient(90deg, rgba(20,156,234,0.06), rgba(20,156,234,0.02));color:#fff;border-color:#0f72c6}
+.notif-button.text-only .notif-icon{display:none}
+
+/* Notification panel (floating, clear display) */
+.notif-panel{
+  position:fixed;
+  right:28px;
+  top:82px;
+  width:320px;
+  max-height:60vh;
+  overflow:auto;
+  background:linear-gradient(180deg,#0f1724, rgba(15,23,42,0.95));
+  color:#fff;
+  border-radius:12px;
+  padding:12px;
+  box-shadow:0 30px 80px rgba(2,6,23,0.6);
+  transform-origin:top right;
+  opacity:0;pointer-events:none;transform:translateY(-8px) scale(0.98);
+  transition:opacity .28s ease,transform .28s ease;
+  z-index:60;
+}
+.notif-panel.open{opacity:1;pointer-events:auto;transform:translateY(0) scale(1)}
+.notif-panel h4{margin:0 0 8px 0;font-size:15px}
+.notif-panel .notif-item{padding:10px;border-radius:8px;background:rgba(255,255,255,0.03);margin-bottom:8px}
+.notif-panel .notif-item small{display:block;color:rgba(255,255,255,0.6);margin-top:6px;font-size:12px}
+
+@media (max-width:880px){
+  .notif-panel{right:12px;left:12px;width:auto}
+  .notif-button{width:8.6em;height:3.2em}
+}

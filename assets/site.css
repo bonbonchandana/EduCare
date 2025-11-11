@@ -1,0 +1,25 @@
+/* Central site stylesheet — single place to include page themes without multiple <link> tags.
+   This file imports the existing theme fragments. Edit the imported files for per-area tweaks.
+   Using @import keeps a single HTML include while preserving the modular theme files.
+*/
+
+/* Electric glow (visual accents) */
+@import url("./electric-glow.css");
+
+/* Admin theme (specific admin palette) */
+@import url("../admin/admin-theme.css");
+
+/* Parent / shared theme (if present) */
+@import url("../parent/parent-theme.css");
+
+/* Student theme overrides */
+@import url("../student/student-theme.css");
+
+/* Any additional global helpers can go below */
+:root{
+  --site-accent: #7b2ff7;
+}
+
+/* small normalization to ensure consistent base across pages */
+html,body{height:100%;}
+body{font-family: 'Poppins', sans-serif;color:var(--site-fg, #0f172a);}

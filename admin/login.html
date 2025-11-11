@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EduCare | Admin Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family:'Poppins',sans-serif;
+      background: linear-gradient(135deg, #06b6d4 0%, #ec4899 50%, #f97316 100%);
+      min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;
+    }
+    .container{max-width:900px;width:100%;}
+    .card{background:rgba(255,255,255,0.98);border-radius:20px;padding:28px;box-shadow:0 12px 40px rgba(0,0,0,.15);max-width:480px;margin:0 auto}
+  /* glow / visibility helpers (uses --glow-color to match theme) */
+  :root{--glow-color:rgba(123,47,247,0.9);--fg:#0f172a}
+  h2{color:var(--fg);margin-bottom:8px;text-shadow:0 1px 0 rgba(255,255,255,0.6), 0 0 12px var(--glow-color);}
+  p.muted{color:#475569;margin-bottom:12px; text-shadow:0 0 8px rgba(0,0,0,0.02), 0 0 6px rgba(123,47,247,0.06)}
+  select,input{width:100%;padding:12px;margin:8px 0;border:1px solid #e6edf3;border-radius:10px}
+  /* placeholder visibility */
+  input::placeholder, select::placeholder { color: rgba(15,23,42,0.45); }
+  /* make back links visible against card */
+  a.back{color:var(--fg);text-shadow:0 1px 0 rgba(255,255,255,0.6), 0 0 8px rgba(123,47,247,0.06); }
+    button{width:100%;padding:12px;border:none;border-radius:10px;background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff;font-weight:600}
+    a.back{display:inline-block;margin-top:12px;color:#6b7280;text-decoration:none}
+  </style>
+  <link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+  <div class="container">
+    <div class="card electric">
+      <div class="card-content">
+      <h2>Admin Login</h2>
+  <p class="muted">Sign in with your admin email and password.</p>
+  <select id="adminSelect"></select>
+  <input id="emailInput" placeholder="Or enter admin email" />
+  <input id="passwordInput" placeholder="Password" type="password" />
+  <button id="login">Sign in</button>
+      <div id="msg" style="margin-top:12px;color:#dc2626"></div>
+      <p><a class="back" href="../index.html">← Back to Home</a></p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <script src="./admin.js"></script>
+  <script src="admin-theme.js"></script>
+  <script src="../assets/electric-glow.js"></script>
+  <script>
+    const $sel = document.getElementById('adminSelect');
+    const admins = EduCareAdmin.list('admins');
+    if(admins.length===0){ $sel.innerHTML = '<option value="">(no admins)</option>'; }
+    else{ $sel.innerHTML = admins.map(a=>`<option value="${a.id}">${a.name} (${a.email||a.id})</option>`).join(''); }
+
+    document.getElementById('login').onclick = function(){
+      const sel = $sel.value;
+      const email = (document.getElementById('emailInput').value||'').trim();
+      const password = (document.getElementById('passwordInput').value||'').trim();
+      if(!password){ document.getElementById('msg').textContent = 'Please enter password'; return; }
+      let match = null;
+      if(sel) match = EduCareAdmin.getById('admins', sel);
+      if(!match && email){ match = EduCareAdmin.list('admins').find(a=> (a.email||'').toLowerCase()===email.toLowerCase()); }
+      if(!match){ document.getElementById('msg').textContent = 'Admin account not found'; return; }
+      if (match.password !== password){ document.getElementById('msg').textContent = 'Invalid password'; return; }
+      localStorage.setItem('educare_current_admin_id', match.id);
+      try{ localStorage.setItem('educare_user', JSON.stringify({ username: match.name || match.email || match.id, role: 'admin' })); }catch(e){}
+      window.location.href = 'dashboard.html';
+    };
+  </script>
+</body>
+</html>

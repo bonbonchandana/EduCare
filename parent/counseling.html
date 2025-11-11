@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Parent • Counseling Feedback</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <!-- Parent theme -->
+  <link rel="stylesheet" href="parent-theme.css">
+  </head>
+<body class="parent-portal page-counseling">
+    <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <div class="radio-container" style="--total-radio:6">
+        <input type="radio" id="nav-dashboard" name="parent-nav" />
+        <label for="nav-dashboard" onclick="location.href='dashboard.html'">Dashboard</label>
+
+        <input type="radio" id="nav-academic" name="parent-nav" />
+        <label for="nav-academic" onclick="location.href='academic.html'">Academic</label>
+
+        <input type="radio" id="nav-attendance" name="parent-nav" />
+        <label for="nav-attendance" onclick="location.href='attendance.html'">Attendance</label>
+
+        <input type="radio" id="nav-counseling" name="parent-nav" checked />
+        <label for="nav-counseling" onclick="location.href='counseling.html'">Counseling Feedback</label>
+
+        <input type="radio" id="nav-chat" name="parent-nav" />
+        <label for="nav-chat" onclick="location.href='chat.html'">Communication</label>
+
+        <input type="radio" id="nav-profile" name="parent-nav" />
+        <label for="nav-profile" onclick="location.href='profile.html'">Profile</label>
+
+        <div class="glider-container"><div class="glider"></div></div>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div>
+        <h1>Counseling Feedback</h1>
+        <p style="color:#f7f9fc">Below are the counseling sessions conducted for your child, with counselor remarks and outcomes.</p>
+      </div>
+      <div class="header-controls">
+        <button class="notif-button" id="notifBtn" aria-expanded="false" aria-controls="notifPanel" title="Notifications">
+          <span class="notif-icon">🔔</span>
+          <span class="notif-text" style="display:none">Notifications</span>
+        </button>
+      </div>
+    </div>
+
+    <table id="sessionTable" class="counseling-table">
+      <thead>
+        <tr><th>Date</th><th>Counselor</th><th>Notes</th><th>Outcome</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="summary purple-insights" id="summaryBox"></div>
+      <div id="studentGrid" style="display:none"></div>
+  </main>
+
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <script src="../admin/admin.js"></script>
+  <script src="parent.js"></script>
+  <script src="parent-theme.js"></script>
+  <script>
+    function render(){
+      const p = EduCareParent.getCurrentParent();
+      if(!p) return;
+      const s = EduCareParent.getLinkedStudent();
+      if(!s) return;
+
+      const sessions = EduCareParent.getStudentSessions();
+      const tbody = document.querySelector('#sessionTable tbody');
+      tbody.innerHTML = sessions.map(se=>{
+        const c = EduCareAdmin.getById('counselors', se.counselorId);
+        return `<tr>
+          <td>${EduCareParent.fmtDate(se.date)}</td>
+          <td>${c ? c.name : 'Unknown'}</td>
+          <td>${se.notes || '-'}</td>
+          <td>${se.outcome || '-'}</td>
+        </tr>`;
+      }).join('') || '<tr><td colspan=\"4\" style=\"color:#6b7280;padding:16px\">No counseling records available yet.</td></tr>';
+
+      const total = sessions.length;
+      const improved = sessions.filter(se => (se.outcome||'').toLowerCase().includes('improved')).length;
+      const plans = sessions.filter(se => (se.outcome||'').toLowerCase().includes('plan')).length;
+      const risk = s.risk;
+
+      let message = '';
+      if(total === 0)
+        message = `No counseling sessions found. Please ensure your child attends scheduled counseling to monitor progress.`;
+      else if(risk === 'High')
+        message = `⚠️ ${total} sessions conducted. The counselor advises regular monitoring. Discuss with your child and counselor for support.`;
+      else if(risk === 'Medium')
+        message = `🟡 ${total} sessions completed. Moderate progress observed — continue encouraging participation.`;
+      else
+        message = `✅ ${total} sessions completed with consistent improvement. Great progress observed by the counselor.`;
+
+      document.getElementById('summaryBox').innerHTML = `
+        <h3>Summary & Insights</h3>
+        <p>${message}</p>
+        <p style=\"color:#6b7280\">Positive Feedbacks: ${improved} | Action Plans: ${plans}</p>
+      `;
+    }
+
+    if(EduCareParent.ensureParentSelected()) render();
+    else window.addEventListener('parent-ready', render, {once:true});
+  </script>
+</body>
+</html>

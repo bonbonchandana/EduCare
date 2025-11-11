@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Unified Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <style>
+    :root{--bg:#f6f8fb;--card:#fff;--muted:#6b7280;--accentA:#7b2ff7;--accentB:#f107a3}
+    *{box-sizing:border-box}
+    body{font-family:'Poppins',sans-serif;margin:0;min-height:100vh;background:linear-gradient(180deg,#f8fafc 0%,#eef2ff 100%);display:flex;align-items:center;justify-content:center;padding:28px}
+    .container{max-width:1100px;width:100%;}
+    .header{text-align:center;margin-bottom:22px}
+    .logo{font-size:26px;font-weight:700;color:#111;display:inline-flex;align-items:center;gap:10px}
+    .logo .fas{color:var(--accentA)}
+    .tagline{font-size:14px;color:var(--muted);margin-top:6px}
+    .subtitle{font-size:12px;color:var(--muted);margin-top:4px}
+
+    .roles-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:18px}
+    .role-card{background:var(--card);border-radius:14px;padding:20px;box-shadow:0 10px 30px rgba(16,24,40,.06);cursor:pointer;transition:transform .15s,box-shadow .15s;display:flex;flex-direction:column;gap:12px}
+  .role-card{position:relative;overflow:hidden}
+  /* per-card glow element (radial) */
+  .role-card .glow{position:absolute;left:50%;top:50%;width:180px;height:180px;border-radius:50%;transform:translate(-50%,-50%) scale(0.35);opacity:0;pointer-events:none;transition:transform .5s cubic-bezier(.2,.9,.3,1),opacity .35s}
+  .role-card:hover .glow{transform:translate(-50%,-50%) scale(1);opacity:1}
+  /* different colors per role */
+  .role-card.admin .glow{background:radial-gradient(circle,#7b2ff7 0%,rgba(123,47,247,0.12) 40%, rgba(123,47,247,0.04) 100%)}
+  .role-card.counselor .glow{background:radial-gradient(circle,#06b6d4 0%,rgba(6,182,212,0.12) 40%, rgba(6,182,212,0.04) 100%)}
+  .role-card.parent .glow{background:radial-gradient(circle,#ffb86b 0%,rgba(255,184,107,0.12) 40%, rgba(255,184,107,0.04) 100%)}
+  .role-card.student .glow{background:radial-gradient(circle,#34d399 0%,rgba(52,211,153,0.12) 40%, rgba(52,211,153,0.04) 100%)}
+  /* full-screen fill overlay + logo */
+  .page-fill{position:fixed;inset:0;pointer-events:none;z-index:9999;display:block}
+  .page-fill .fill-circle{position:absolute;border-radius:50%;will-change:transform,opacity;filter:blur(0px);}
+  .page-fill .logo-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;opacity:0;transition:opacity 1200ms ease;pointer-events:none}
+  .page-fill .logo-center .logo-icon{font-size:72px;color:#fff;filter:drop-shadow(0 10px 30px rgba(0,0,0,0.45));transition:filter 300ms ease, transform 300ms ease}
+  .page-fill .logo-center .logo-text{color:rgba(255,255,255,0.95);font-weight:700;letter-spacing:0.6px}
+  @keyframes logoCinematicGlow{
+    0%{ filter:drop-shadow(0 0 0 rgba(255,255,255,0)); transform:scale(1); }
+    50%{ filter:drop-shadow(0 20px 80px rgba(255,255,255,0.8)); transform:scale(1.05); }
+    100%{ filter:drop-shadow(0 0 0 rgba(255,255,255,0)); transform:scale(1); }
+  }
+  .logo-glow{animation: logoCinematicGlow 1000ms ease-in-out forwards}
+    .role-card:focus{outline:3px solid rgba(124,58,237,.12)}
+    .role-card:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(16,24,40,.08)}
+    .role-icon{font-size:30px;color:var(--accentA)}
+    .role-title{font-weight:600;color:#0f172a}
+    .role-description{font-size:13px;color:var(--muted);flex:1}
+    .role-button{border:none;background:linear-gradient(135deg,var(--accentA),var(--accentB));color:#fff;padding:8px 12px;border-radius:10px;font-weight:600;cursor:pointer}
+
+    /* small debug panel */
+    .debug{position:fixed;right:16px;bottom:16px;background:#111;color:#fff;padding:8px 12px;border-radius:10px;font-size:12px;opacity:.9}
+    @media (max-width:600px){body{padding:16px}.role-card{padding:16px}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo"><i class="fas fa-graduation-cap"></i> EduCare</div>
+      <div class="tagline">AI-Powered Student Success Platform</div>
+      <div class="subtitle">PREDICT • SUPPORT • SUCCEED</div>
+    </div>
+
+    <div class="roles-grid" role="list">
+      <div class="role-card admin" role="listitem" tabindex="0" data-href="admin/login.html">
+        <div class="glow" aria-hidden="true"></div>
+        <div class="role-icon"><i class="fas fa-user-shield"></i></div>
+        <div class="role-title">Administrator</div>
+        <div class="role-description">Manage users, upload data, run AI models, and access system analytics</div>
+        <button class="role-button" data-href="admin/login.html">Admin Portal</button>
+      </div>
+
+      <div class="role-card counselor" role="listitem" tabindex="0" data-href="counselor/login.html">
+        <div class="glow" aria-hidden="true"></div>
+        <div class="role-icon"><i class="fas fa-user-md"></i></div>
+        <div class="role-title">Counselor</div>
+        <div class="role-description">Monitor students, schedule sessions, view risk alerts, and provide support</div>
+        <button class="role-button" data-href="counselor/login.html">Counselor Portal</button>
+      </div>
+
+      <div class="role-card parent" role="listitem" tabindex="0" data-href="parent/login.html">
+        <div class="glow" aria-hidden="true"></div>
+        <div class="role-icon"><i class="fas fa-users"></i></div>
+        <div class="role-title">Parent</div>
+        <div class="role-description">Track your child's performance, attendance, and counseling sessions</div>
+        <button class="role-button" data-href="parent/login.html">Parent Portal</button>
+      </div>
+
+      <div class="role-card student" role="listitem" tabindex="0" data-href="student/login.html">
+        <div class="glow" aria-hidden="true"></div>
+        <div class="role-icon"><i class="fas fa-user-graduate"></i></div>
+        <div class="role-title">Student</div>
+        <div class="role-description">View grades, attendance, download reports, and connect with counselors</div>
+        <button class="role-button" data-href="student/login.html">Student Portal</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="debug" id="debugPanel" title="Click to toggle session info" style="display:none">LS: —</div>
+
+  <script>
+    // Animated fill: on hover we show the radial glow (CSS). On click we expand a circle to fill the viewport, then navigate.
+    function animateFullFill(originX, originY, color, role = 'admin', duration=700){
+      return new Promise(resolve=>{
+        const el = document.createElement('div'); el.className = 'page-fill';
+        el.style.position = 'fixed'; el.style.left = '0'; el.style.top = '0'; el.style.width = '100vw'; el.style.height = '100vh'; el.style.pointerEvents = 'none'; el.style.zIndex = 9999; el.style.overflow = 'hidden'; el.style.opacity = '0';
+
+        // inner circle
+        const c = document.createElement('div'); c.className = 'fill-circle';
+        const initialSize = 32; // px
+        c.style.width = c.style.height = initialSize + 'px'; c.style.left = (originX - initialSize/2) + 'px'; c.style.top = (originY - initialSize/2) + 'px';
+        c.style.position = 'absolute'; c.style.borderRadius = '50%';
+        c.style.background = color; c.style.transform = 'scale(1)'; c.style.transition = `transform ${duration}ms cubic-bezier(.2,.9,.3,1)`; c.style.willChange = 'transform,opacity';
+        el.appendChild(c);
+        document.body.appendChild(el);
+
+        // compute final scale to cover farthest corner
+        const vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+        const vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+        const dx = Math.max(originX, vw - originX);
+        const dy = Math.max(originY, vh - originY);
+        const maxDist = Math.sqrt(dx*dx + dy*dy);
+        const finalRadius = maxDist;
+        const finalSize = finalRadius * 2;
+        const scale = finalSize / initialSize * 1.15;
+
+        // start expand
+        requestAnimationFrame(()=>{
+          c.style.transform = `scale(${scale})`;
+          el.style.transition = `opacity ${Math.floor(duration/3)}ms ease-out`;
+          el.style.opacity = '1';
+        });
+
+        // After expansion, show logo during a 2s pause, then play 1s glow, then resolve
+        setTimeout(()=>{
+          // create centered logo overlay
+          const logoWrap = document.createElement('div'); logoWrap.className = 'logo-center';
+          // choose icon for role
+          const icon = document.createElement('i'); icon.className = 'logo-icon fas';
+          let roleText = 'Portal';
+          if(role==='admin'){ icon.classList.add('fa-user-shield'); roleText='Administrator'; }
+          else if(role==='counselor'){ icon.classList.add('fa-user-md'); roleText='Counselor'; }
+          else if(role==='parent'){ icon.classList.add('fa-users'); roleText='Parent'; }
+          else { icon.classList.add('fa-user-graduate'); roleText='Student'; }
+          const label = document.createElement('div'); label.className = 'logo-text'; label.textContent = roleText;
+          logoWrap.appendChild(icon); logoWrap.appendChild(label);
+          el.appendChild(logoWrap);
+
+          // fade logo in slowly (over ~1.2s)
+          requestAnimationFrame(()=>{ logoWrap.style.opacity = '1'; });
+
+          // wait 2s while logo is visible, then play 1s cinematic glow on icon
+          setTimeout(()=>{
+            icon.classList.add('logo-glow');
+            // after the glow animates (~1s), resolve so caller may navigate
+            setTimeout(()=>{
+              resolve();
+            }, 1000);
+          }, 2000);
+        }, duration + 40);
+      });
+    }
+
+    function colorForCard(card){
+      if(card.classList.contains('admin')) return 'radial-gradient(circle,#7b2ff7 0%,#7b2ff7 100%)';
+      if(card.classList.contains('counselor')) return 'radial-gradient(circle,#06b6d4 0%,#06b6d4 100%)';
+      if(card.classList.contains('parent')) return 'radial-gradient(circle,#ffb86b 0%,#ffb86b 100%)';
+      return 'radial-gradient(circle,#34d399 0%,#34d399 100%)';
+    }
+
+    // replace previous navigation handlers with animated version
+    document.querySelectorAll('.role-card').forEach(card => {
+      const href = card.dataset.href;
+      if(!href) return;
+      card.addEventListener('click', async (e)=>{
+        // if click originated from a button, let button handler control (they also call location), but we unify behavior: prevent immediate navigation
+        e.preventDefault(); e.stopPropagation();
+        const rect = card.getBoundingClientRect();
+        const cx = rect.left + rect.width/2; const cy = rect.top + rect.height/2;
+  // pick a solid color based on role
+  let solid = '#7b2ff7'; let roleKey = 'admin';
+  if(card.classList.contains('counselor')){ solid = '#06b6d4'; roleKey='counselor'; }
+  if(card.classList.contains('parent')){ solid = '#ffb86b'; roleKey='parent'; }
+  if(card.classList.contains('student')){ solid = '#34d399'; roleKey='student'; }
+  await animateFullFill(cx, cy, solid, roleKey);
+        // navigate after animation
+        window.location.href = href;
+      });
+      card.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' ') { e.preventDefault(); card.click(); } });
+    });
+
+    // buttons use same fill but start from button center
+  document.querySelectorAll('.role-button').forEach(b=> b.addEventListener('click', async (e)=>{ e.stopPropagation(); e.preventDefault(); const card = b.closest('.role-card'); const rect = b.getBoundingClientRect(); const cx = rect.left + rect.width/2; const cy = rect.top + rect.height/2; let solid = '#7b2ff7'; let roleKey='admin'; if(card.classList.contains('counselor')){ solid = '#06b6d4'; roleKey='counselor'; } if(card.classList.contains('parent')){ solid = '#ffb86b'; roleKey='parent'; } if(card.classList.contains('student')){ solid = '#34d399'; roleKey='student'; } await animateFullFill(cx, cy, solid, roleKey); const h = b.dataset.href || card.dataset.href; if(h) window.location.href = h; }));
+    // small debug toggle — Ctrl+D opens a panel that shows session keys and the current store
+    function readSession(){
+      const keys = ['educare_user','educare_current_student_id','educare_current_parent_id','educare_current_counselor_id','educare_current_admin_id'];
+      const basic = keys.map(k=>`${k}=${localStorage.getItem(k)||'-'}`).join('\n');
+      const raw = localStorage.getItem('educare_store_v1');
+      let store = null;
+      try{ store = raw ? JSON.parse(raw) : null; }catch(e){ store = { error: 'invalid JSON in store' }; }
+      const short = store ? Object.fromEntries(Object.entries(store.users||{}).map(([role,arr])=>[role, (arr||[]).slice(0,6).map(u=>{ const copy = {...u}; if(copy.password) copy.password='••••••'; return copy; })])) : {};
+      return basic + '\n\nSTORE (truncated - passwords masked):\n' + JSON.stringify(short, null, 2);
+    }
+    const dp = document.getElementById('debugPanel');
+    window.addEventListener('keydown', (e)=>{
+      if(e.ctrlKey && e.key.toLowerCase()==='d'){
+        if(dp.style.display==='none'){
+          dp.style.display='block'; dp.textContent = 'Loading...';
+          // allow large content and wrap
+          dp.style.whiteSpace = 'pre'; dp.style.maxWidth = '480px'; dp.style.overflow = 'auto';
+          dp.textContent = readSession();
+        } else { dp.style.display='none'; }
+      }
+    });
+  </script>
+
+  <!-- Firebase init (web SDK via module) + sync adapter -->
+  <script type="module" src="firebase/firebase-init.js"></script>
+  <script src="firebase/firestore-sync.js"></script>
+  <!-- optional project modules (Firebase removed for local-only mode) -->
+  <script type="module" src="./educare-dashboard.js"></script>
+</body>
+</html>

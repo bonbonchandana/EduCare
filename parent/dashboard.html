@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Parent • Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <!-- Load Firebase + data layer FIRST -->
+  <script type="module" src="../admin/educare-data-firebase.js"></script>
+
+  <!-- EDUCARE Firebase init + sync (added) -->
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+
+<script type="module">
+  import { EduCareData } from "../admin/educare-data-firebase.js";
+
+  async function loadStudents() {
+    const students = await EduCareData.list("students");
+    const grid = document.getElementById("studentGrid");
+    if (!grid) return;
+    // Hide specific seeded/test students by name or pin
+    const hideNames = ['Ravi Kumar','Anjali Sharma','Vikram Singh','Unnamed','Aarush Nair','Mihika Sharma','Dev Patel','Ananya Reddy','Kabir Verma','SU1'];
+    const hidePins = ['20A91A001','20A91A002','20A91A003','797025','23CS001','23EC002','23IT003','23ME004','23CV005','126'];
+    const visible = (students || []).filter(s => {
+      const name = (s.name || '').trim();
+      const pin = String(s.pin || '').trim();
+      if(name && hideNames.includes(name)) return false;
+      if(pin && hidePins.includes(pin)) return false;
+      return true;
+    });
+    grid.innerHTML = visible.map(s => `
+      <div class="card">
+        <div class="name">${s.name}</div>
+        <div class="meta">PIN: ${s.pin || '-'} | CGPA: ${s.cgpa ?? '-'}</div>
+        <button onclick="showStudent('${s.id}')">View</button>
+      </div>
+    `).join('');
+  }
+
+  async function showStudent(id) {
+    const st = await EduCareData.getById("students", id);
+    // TODO: render st into the DOM
+  }
+
+  async function createSession({ studentId, counselorId, date, notes, outcome }) {
+    await EduCareData.addSession({ studentId, counselorId, date, notes, outcome });
+  }
+
+  async function updateCounselor(id, payload) {
+    await EduCareData.update("counselors", id, payload);
+  }
+
+  // Kick off initial load:
+  loadStudents();
+</script>
+
+  
+
+  <!-- Chart removed from parent dashboard (attendance chart moved to dedicated Attendance page) -->
+  <!-- Parent theme -->
+  <link rel="stylesheet" href="parent-theme.css">
+</head>
+<body class="parent-portal page-dashboard">
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <div class="radio-container" style="--total-radio:6">
+        <input type="radio" id="nav-dashboard" name="parent-nav" checked />
+        <label for="nav-dashboard" onclick="location.href='dashboard.html'">Dashboard</label>
+
+        <input type="radio" id="nav-academic" name="parent-nav" />
+        <label for="nav-academic" onclick="location.href='academic.html'">Academic</label>
+
+        <input type="radio" id="nav-attendance" name="parent-nav" />
+        <label for="nav-attendance" onclick="location.href='attendance.html'">Attendance</label>
+
+        <input type="radio" id="nav-counseling" name="parent-nav" />
+        <label for="nav-counseling" onclick="location.href='counseling.html'">Counseling Feedback</label>
+
+        <input type="radio" id="nav-chat" name="parent-nav" />
+        <label for="nav-chat" onclick="location.href='chat.html'">Communication</label>
+
+        <input type="radio" id="nav-profile" name="parent-nav" />
+        <label for="nav-profile" onclick="location.href='profile.html'">Profile</label>
+
+        <div class="glider-container"><div class="glider"></div></div>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div>
+        <h1>Parent Dashboard</h1>
+        <p class="dashboard-intro">Welcome! Here’s an overview of your child’s academic status and counseling summary.</p>
+      </div>
+      <div class="header-controls">
+        <button class="notif-button" id="notifBtn" aria-expanded="false" aria-controls="notifPanel" title="Notifications">
+          <span class="notif-icon">🔔</span>
+          <span class="notif-text" style="display:none">Notifications</span>
+        </button>
+      </div>
+    </div>
+
+    <section class="cards">
+      <div class="card"><h3>Attendance</h3><p id="attValue">0%</p></div>
+      <div class="card"><h3>CGPA</h3><p id="cgpaValue">0.0</p></div>
+      <div class="card"><h3>Stress Level</h3><p id="stressValue">0 / 10</p></div>
+      <div class="card"><h3>AI Predicted Risk</h3><p id="riskValue" class="risk">Low</p></div>
+    </section>
+
+    <div id="linkedInfo" style="margin-top:18px"></div>
+
+    
+  <!-- trendChart removed per request -->
+  </main>
+
+  <script src="../admin/admin.js"></script>
+  <script src="parent.js"></script>
+  <script src="parent-theme.js"></script>
+  <script src="/assets/chatbot.js"></script>
+  <script>
+    function riskClass(r){
+      if(r==='High') return 'risk high';
+      if(r==='Medium') return 'risk medium';
+      return 'risk low';
+    }
+
+    function render(){
+      const p = EduCareParent.getCurrentParent();
+      if(!p) return;
+
+      const s = EduCareParent.getLinkedStudent();
+      if(!s){
+        document.querySelector('.main').innerHTML = '<h2 style=\"color:#6b7280\">No student linked to this account.</h2>';
+        return;
+      }
+
+      const perf = EduCareParent.getStudentPerformance();
+      document.getElementById('attValue').textContent = perf.attendance + '%';
+      document.getElementById('cgpaValue').textContent = perf.cgpa.toFixed(1);
+      document.getElementById('stressValue').textContent = perf.stress + ' / 10';
+      const riskEl = document.getElementById('riskValue');
+      riskEl.textContent = perf.risk;
+      riskEl.className = riskClass(perf.risk);
+
+      const counselor = EduCareParent.getLinkedCounselor();
+      // Build a richer linked information panel: student summary, sessions, hobbies, and notifications
+      try{
+        const store = EduCareAdmin.getStore() || {};
+        const allSessions = (store.sessions||[]).filter(se=>se.studentId===s.id).sort((a,b)=> new Date(b.date||b.updatedAt||b.createdAt) - new Date(a.date||a.updatedAt||a.createdAt));
+        const studentNotes = (s.noteDocuments || []).slice().reverse();
+        const hobbies = s.hobbies || [];
+
+        const sessionsHtml = allSessions.length ? allSessions.map(se=>{
+          const counselorObj = EduCareAdmin.getById('counselors', se.counselorId) || {};
+          const when = EduCareParent.fmtDate(se.date || se.updatedAt || se.createdAt || se.at || new Date().toISOString());
+          const attachments = [];
+          if(Array.isArray(se.noteDocuments)) se.noteDocuments.forEach(d=>attachments.push(`<div style="margin-top:6px"><a href="${d.dataUrl||'#'}" download="${d.name||'note'}">📎 ${d.name||'document'}</a></div>`));
+          if(Array.isArray(se.assignments)) se.assignments.forEach(d=>attachments.push(`<div style="margin-top:6px"><a href="${d.dataUrl||'#'}" download="${d.name||'assignment'}">📁 ${d.name||'assignment'}</a></div>`));
+          const replyCount = (se.replies||[]).length;
+          return `
+            <div style="padding:10px;border:1px solid #eef2ff;border-radius:10px;margin-bottom:10px;background:#fff">
+              <div style="font-size:13px;color:#6b7280">${when} • Counselor: ${counselorObj.name||'-'}</div>
+              <div style="margin-top:6px;font-weight:600">Objective: ${se.objective||'—'}</div>
+              <div style="margin-top:6px">Outcome: ${se.outcome||'—'}</div>
+              <div style="margin-top:6px">Marks: ${se.marks!=null? se.marks : '-' } ${se.completed? '<span style="background:#16a34a;color:#fff;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:8px">Completed</span>':''}</div>
+              ${attachments.join('')}
+              <div style="margin-top:8px;font-size:13px;color:#6b7280">Replies: ${replyCount} <button style="margin-left:8px" onclick="showSessionReplies('${se.id}')">View</button></div>
+            </div>`;
+        }).join('') : '<div style="color:#6b7280">No sessions found for this student.</div>';
+
+        const hobbiesHtml = hobbies.length ? hobbies.map(h=>`<div style="padding:8px;border:1px solid #f3f4f6;border-radius:10px;margin-bottom:8px"><strong>${h.name}</strong><div style="font-size:13px;color:#6b7280">Level: ${h.level||'—'}</div><div style="margin-top:6px">${(h.notes||'').slice(0,240)}</div></div>`).join('') : '<div style="color:#6b7280">No hobbies recorded.</div>';
+
+        // student-specific notifications (if any) live on store.users.students
+        const studentUser = (store.users && (store.users.students||[])).find(x=>x.id===s.id) || {};
+        const studentNotifs = (studentUser.notifications||[]).slice().reverse();
+        const notifsHtml = studentNotifs.length ? studentNotifs.map(n=>`<div style="padding:8px;border-bottom:1px solid #f1f5f9"><strong>${n.title}</strong><div style="font-size:12px;color:#6b7280">${new Date(n.at).toLocaleString()}</div><div style="margin-top:6px">${n.message}</div></div>`).join('') : '<div style="color:#6b7280">No notifications for student.</div>';
+
+        // Render as tabbed segments to avoid long scrolling
+        document.getElementById('linkedInfo').innerHTML = `
+          <style>
+            .tabs{display:flex;gap:8px;border-bottom:1px solid #eef2ff;padding-bottom:8px;margin-bottom:12px}
+            .tab-btn{background:transparent;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;color:#374151}
+            .tab-btn.active{background:linear-gradient(90deg,#eef2ff,#f8f0ff);font-weight:600}
+            .tab-pane{display:none}
+            .tab-pane.active{display:block}
+          </style>
+          <h3>Linked Information</h3>
+          <p><strong>Student:</strong> ${s.name} (${s.pin || '-'})</p>
+          <p><strong>Counselor:</strong> ${counselor? counselor.name : 'Not Assigned'} (${counselor?.email || '-'})</p>
+
+          <div class="tabs">
+            <button class="tab-btn active" data-tab="overview">Overview</button>
+            <button class="tab-btn" data-tab="sessions">Sessions</button>
+            <button class="tab-btn" data-tab="hobbies">Hobbies</button>
+            <button class="tab-btn" data-tab="notifications">Notifications</button>
+          </div>
+
+          <div id="tab_overview" class="tab-pane active">
+            <div style="padding:8px;border-radius:10px;background:#fff">${/* small overview: basic stats */''}
+              <div style="display:flex;gap:12px;flex-wrap:wrap">
+                <div style="min-width:140px"><strong>CGPA</strong><div style="color:#6b7280">${s.cgpa ?? '-'}</div></div>
+                <div style="min-width:140px"><strong>Attendance</strong><div style="color:#6b7280">${s.attendance ?? '-'}%</div></div>
+                <div style="min-width:140px"><strong>Stress</strong><div style="color:#6b7280">${s.stress ?? '-'} / 10</div></div>
+                <div style="min-width:140px"><strong>Risk</strong><div style="color:#6b7280">${s.risk || '-'}</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab_sessions" class="tab-pane">
+            ${sessionsHtml}
+          </div>
+
+          <div id="tab_hobbies" class="tab-pane">
+            ${hobbiesHtml}
+          </div>
+
+          <div id="tab_notifications" class="tab-pane">
+            ${notifsHtml}
+          </div>
+        `;
+
+        // Wire up tab switching
+        (function(){
+          const container = document.getElementById('linkedInfo');
+          const buttons = container.querySelectorAll('.tab-btn');
+          buttons.forEach(b=> b.addEventListener('click', ()=>{
+            buttons.forEach(x=>x.classList.remove('active'));
+            b.classList.add('active');
+            const tab = b.getAttribute('data-tab');
+            container.querySelectorAll('.tab-pane').forEach(p=> p.classList.remove('active'));
+            const pane = container.querySelector('#tab_' + tab);
+            if(pane) pane.classList.add('active');
+          }));
+        })();
+
+      }catch(e){
+        console.error('Failed to build linked info', e);
+        document.getElementById('linkedInfo').textContent = 'Failed to load detailed student information.';
+      }
+
+      // Parent dashboard no longer renders an inline chart; attendance/academic charts live on dedicated pages
+    }
+
+    if(EduCareParent.ensureParentSelected()) render();
+    else window.addEventListener('parent-ready', render,{once:true});
+    EduCareAdmin.onStoreUpdated(render);
+
+    // Notifications UI for parent
+  // Backwards-compatible notification elements: prefer newer `notifBtn` and dynamic panel/badge
+  const notifToggle = document.getElementById('notifToggle') || document.getElementById('notifBtn');
+  const notifPanel = document.getElementById('notifPanel');
+  let notifCount = document.getElementById('notifCount');
+
+    function renderNotifications(){
+      const me = EduCareParent.getCurrentParent();
+      if(!me) return;
+      const store = EduCareAdmin.getStore();
+      const my = (store.users && store.users.parents||[]).find(s=>s.id===me.id) || {};
+      const notes = my.notifications || [];
+      const unread = notes.filter(n=>!n.read).length;
+      // update badge: use existing #notifCount if present, otherwise create/find badge inside notifBtn
+      if(notifCount){
+        notifCount.textContent = unread || 0;
+      } else {
+        const btn = document.getElementById('notifBtn') || document.getElementById('notifToggle');
+        if(btn){
+          let badge = btn.querySelector('.notif-badge');
+          if(!badge){ badge = document.createElement('span'); badge.className = 'notif-badge'; badge.style.cssText='background:#ef4444;padding:2px 6px;border-radius:999px;font-size:12px;margin-left:6px;display:inline-block'; btn.appendChild(badge); }
+          badge.textContent = unread || 0;
+        }
+      }
+
+      // populate panel if present
+      if(notifPanel){
+        notifPanel.innerHTML = notes.length ? notes.map(n=>`<div style="padding:8px;border-bottom:1px solid #f1f5f9"><strong>${n.title}</strong><div style="font-size:12px;color:#6b7280">${new Date(n.at).toLocaleString()}</div><div style="margin-top:6px">${n.message}</div><div style="text-align:right;margin-top:6px"><button onclick="markNotifReadParent('${n.id}')">Mark read</button></div></div>`).join('') : '<div style="color:#6b7280">No notifications</div>';
+      }
+    }
+
+    window.markNotifReadParent = function(id){
+      const store = EduCareAdmin.getStore();
+      if(!store) return;
+      const me = EduCareParent.getCurrentParent();
+      if(me){
+        const p = (store.users && store.users.parents||[]).find(x=>x.id===me.id);
+        if(p && p.notifications){ const ni = p.notifications.find(x=>x.id===id); if(ni) ni.read = true; }
+      }
+      EduCareAdmin.setStore(store);
+      render(); renderNotifications();
+    };
+
+    notifToggle && notifToggle.addEventListener('click', ()=>{ notifPanel.style.display = notifPanel.style.display === 'none' ? 'block' : 'none'; });
+    EduCareAdmin.onStoreUpdated(renderNotifications);
+    renderNotifications();
+
+    // Show a modal with replies for a given session (invoked from sessions list)
+    window.showSessionReplies = function(sessionId){
+      const store = EduCareAdmin.getStore() || {};
+      const se = (store.sessions||[]).find(x=>x.id===sessionId);
+      if(!se){ alert('Session not found'); return; }
+      const html = [];
+      html.push(`<div style="font-weight:600;margin-bottom:6px">Session: ${se.objective||'—'}</div>`);
+      html.push(`<div style="font-size:13px;color:#6b7280;margin-bottom:8px">${EduCareParent.fmtDate(se.date||se.updatedAt||se.createdAt)}</div>`);
+      if(se.replies && se.replies.length){
+        se.replies.slice().reverse().forEach(r=>{
+          html.push(`<div style="padding:8px;border:1px solid #f1f5f9;border-radius:8px;margin-bottom:8px;background:#fff"><div style="font-size:13px;color:#6b7280">${new Date(r.at).toLocaleString()}</div><div style="margin-top:6px">${r.text||''}</div>`);
+          if(Array.isArray(r.files)) r.files.forEach(f=> html.push(`<div style="margin-top:6px"><a href="${f.dataUrl||'#'}" download="${f.name||'file'}">📎 ${f.name||'file'}</a></div>`));
+          html.push(`</div>`);
+        });
+      } else html.push(`<div style="color:#6b7280">No replies from student.</div>`);
+
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+      wrapper.innerHTML = `<div style="max-width:760px;width:100%;background:#fff;padding:14px;border-radius:12px;max-height:80vh;overflow:auto"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">Session Replies</h3><button id="closeReplies" style="background:transparent;border:none;font-size:18px;cursor:pointer">✖</button></div><div style="margin-top:10px">${html.join('')}</div></div>`;
+      document.body.appendChild(wrapper);
+      document.getElementById('closeReplies').onclick = ()=> document.body.removeChild(wrapper);
+    };
+  </script>
+</body>
+</html>

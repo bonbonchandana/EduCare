@@ -1,0 +1,33 @@
+version: '3.8'
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    container_name: educare_api
+    restart: unless-stopped
+    environment:
+      - EDUCARE_PORT=8000
+      # If you use a Firebase service account, mount it into the container or provide credentials via env
+    volumes:
+      - ..:/app:ro
+    expose:
+      - 8000
+
+  web:
+    image: nginx:stable-alpine
+    container_name: educare_web
+    restart: unless-stopped
+    ports:
+      - '80:80'
+    volumes:
+      # Serve static frontend (project root) as nginx html
+      - ..:/usr/share/nginx/html:ro
+      # Nginx conf
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+
+# Notes:
+# - Build context assumes you run docker-compose from deploy/ directory (docker-compose -f docker-compose.yml up --build -d)
+# - Put firebase/serviceAccountKey.json into model container if server needs to write to Firestore. You can mount it into /app/firebase/serviceAccountKey.json

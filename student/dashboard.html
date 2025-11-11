@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Student • Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../parent/parent-theme.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{--gradA:#14b8a6;--gradB:#3b82f6;--bg:#f5f7fb;--card:#fff;--muted:#6b7280}
+    *{box-sizing:border-box}
+    body{margin:0;display:flex;min-height:100vh;background:var(--bg);font-family:'Poppins',sans-serif}
+    .sidebar{width:240px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:22px 12px;display:flex;flex-direction:column}
+    .brand{font-weight:600;font-size:20px;text-align:center;margin-bottom:16px}
+    .nav a{display:block;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;margin:6px 6px;transition:.2s}
+    .nav a:hover,.nav a.active{background:rgba(255,255,255,.2)}
+    .main{flex:1;padding:24px;overflow:auto}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin:18px 0}
+    .card{background:var(--card);border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:18px}
+    .card h3{margin:0 0 8px;font-size:14px;color:var(--muted)}
+    .card p{font-size:24px;font-weight:600;margin:0}
+    .risk.low{color:#16a34a}
+    .risk.medium{color:#ca8a04}
+    .risk.high{color:#dc2626}
+    .info{background:var(--card);border-radius:16px;padding:16px;margin-top:20px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+    canvas{background:#fff;border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:14px;margin-top:20px}
+    button{padding:8px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff;cursor:pointer}
+  </style>
+</head>
+<body class="parent-portal page-dashboard">
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <a class="active" href="dashboard.html">Dashboard</a>
+      <a href="performance.html">Performance</a>
+      <a href="attendance.html">Attendance</a>
+      <a href="counseling.html">Counseling Reports</a>
+      <a href="hobbies.html">Hobbies</a>
+      <a href="chat.html">Communication</a>
+      <a href="profile.html">Profile</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <h1>Student Dashboard</h1>
+    <p style="color:#6b7280;margin-bottom:14px">Welcome! Here’s an overview of your academic status and counseling updates.</p>
+
+    <section class="cards">
+      <div class="card"><h3>Attendance</h3><p id="attValue">0%</p></div>
+      <div class="card"><h3>CGPA</h3><p id="cgpaValue">0.0</p></div>
+      <div class="card"><h3>Stress</h3><p id="stressValue">0 / 10</p></div>
+      <div class="card"><h3>AI Predicted Risk</h3><p id="riskValue" class="risk">Low</p></div>
+    </section>
+
+    <div class="info" id="linkedInfo"></div>
+
+    <canvas id="trendChart"></canvas>
+  </main>
+
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <script src="../admin/admin.js"></script>
+  <script src="student.js"></script>
+  <script src="student-theme.js"></script>
+  <script src="/assets/chatbot.js"></script>
+  <script>
+    function riskClass(r){
+      if(r==='High') return 'risk high';
+      if(r==='Medium') return 'risk medium';
+      return 'risk low';
+    }
+
+    function render(){
+      const s = EduCareStudent.getCurrentStudent();
+      if(!s) return;
+
+      document.getElementById('attValue').textContent = s.attendance + '%';
+      document.getElementById('cgpaValue').textContent = s.cgpa.toFixed(1);
+      document.getElementById('stressValue').textContent = s.stress + ' / 10';
+      const riskEl = document.getElementById('riskValue');
+      riskEl.textContent = s.risk;
+      riskEl.className = riskClass(s.risk);
+
+      const parent = EduCareStudent.getLinkedParent();
+      const counselor = EduCareStudent.getLinkedCounselor();
+      document.getElementById('linkedInfo').innerHTML = `
+        <h3>Linked Contacts</h3>
+        <p><strong>Counselor:</strong> ${counselor? counselor.name : 'Not Assigned'} (${counselor?.email || '-'})</p>
+        <p><strong>Parent:</strong> ${parent? parent.name : 'Not Linked'} (${parent?.email || '-'})</p>
+      `;
+
+      // Simple trend simulation chart (attendance vs cgpa)
+      const ctx = document.getElementById('trendChart');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Attendance %', 'CGPA', 'Stress'],
+          datasets: [{
+            label: 'Your Metrics',
+            data: [s.attendance, s.cgpa * 10, s.stress * 10],
+            backgroundColor: ['#14b8a6','#3b82f6','#f59e0b']
+          }]
+        },
+        options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:100}}}
+      });
+    }
+
+    if(EduCareStudent.ensureStudentSelected()) render();
+    else window.addEventListener('student-ready', render, {once:true});
+    EduCareAdmin.onStoreUpdated(render);
+  </script>
+</body>
+</html>

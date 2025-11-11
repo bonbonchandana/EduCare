@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Admin • User Management</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <!-- Load Firebase + data layer FIRST -->
+  <script>
+    // Local-only helper functions (use EduCareAdmin local store)
+    function loadStudents(){
+      try{
+        const students = window.EduCareAdmin ? window.EduCareAdmin.list('students') : [];
+        const grid = document.getElementById('studentGrid');
+        if (!grid) return;
+        grid.innerHTML = students.map(s => `
+          <div class="card">
+            <div class="name">${s.name}</div>
+            <div class="meta">PIN: ${s.pin || '-'} | CGPA: ${s.cgpa ?? '-'}</div>
+            <button onclick="showStudent('${s.id}')">View</button>
+          </div>
+        `).join('');
+      }catch(e){ console.warn('loadStudents failed', e); }
+    }
+
+    function showStudent(id){
+      try{ const st = window.EduCareAdmin ? window.EduCareAdmin.getById('students', id) : null; /* render if needed */ }catch(e){}
+    }
+
+    function createSession(payload){ if(window.EduCareAdmin) window.EduCareAdmin.addSession(payload); }
+    function updateCounselor(id, payload){ if(window.EduCareAdmin) window.EduCareAdmin.update('counselors', id, payload); }
+
+    // Kick off initial load
+    loadStudents();
+  </script>
+
+  <div id="studentGrid"></div>
+
+  <style>
+    :root{--gradA:#673ab7;--gradB:#512da8;--bg:#f5f7fb;--card:#fff;--muted:#6b7280;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444}
+    *{box-sizing:border-box} body{margin:0;display:flex;min-height:100vh;background:var(--bg);font-family:'Poppins',sans-serif}
+    .sidebar{width:240px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:22px 12px;display:flex;flex-direction:column}
+    .brand{font-weight:600;font-size:22px;text-align:center;margin-bottom:16px}
+    .nav a{display:block;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;margin:6px 6px;transition:.2s}
+    .nav a:hover,.nav a.active{background:rgba(255,255,255,.2)}
+    .main{flex:1;padding:24px;overflow:auto}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .tabs{display:flex;gap:8px;margin:8px 0 16px}
+    .tab{padding:8px 12px;border-radius:10px;background:#eef;cursor:pointer;color:#374151;font-size:14px}
+    .tab.active{background:#ddd5ff;color:#432;}
+    .controls{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+    .btn{padding:8px 12px;border:none;border-radius:10px;background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff;cursor:pointer;font-size:13px}
+    .btn.secondary{background:#e5e7eb;color:#111}
+    .search{padding:8px 12px;border:1px solid #e5e7eb;border-radius:10px;min-width:220px}
+    table{width:100%;border-collapse:separate;border-spacing:0 10px}
+    th,td{text-align:left;padding:12px}
+    th{color:#374151;font-size:13px}
+    tbody tr{background:var(--card);box-shadow:0 6px 18px rgba(0,0,0,.08)}
+    tbody tr td:first-child{border-top-left-radius:12px;border-bottom-left-radius:12px}
+    tbody tr td:last-child{border-top-right-radius:12px;border-bottom-right-radius:12px}
+    .chip{padding:3px 8px;border-radius:999px;font-size:12px}
+    .chip.low{background:#dcfce7;color:#166534}
+    .chip.med{background:#fef9c3;color:#92400e}
+    .chip.high{background:#fee2e2;color:#991b1b}
+
+    /* modal */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;padding:16px;z-index:30}
+    .modal.open{display:flex}
+    .card{background:#fff;border-radius:16px;padding:18px;box-shadow:0 10px 24px rgba(0,0,0,.2);max-width:720px;width:100%}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .field label{display:block;font-size:12px;color:#6b7280;margin-bottom:4px}
+    .field input,.field select{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:10px}
+    .row{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+    .danger{background:var(--bad)!important}
+    .linker{margin-top:18px;background:#fafafa;border:1px dashed #e5e7eb;border-radius:12px;padding:12px}
+  </style>
+  <link rel="stylesheet" href="admin-theme.css">
+</head>
+<body>
+  <div id="toastContainer" style="position:fixed;right:16px;bottom:16px;z-index:60"></div>
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+  <a class="active" href="user-management.html">User Management</a>
+      <a href="analytics.html">Analytics</a>
+      <a href="settings.html">Settings</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header>
+      <h1>User Management</h1>
+      <div style="color:#6b7280">WECOME</div>
+    </header>
+
+    <div class="tabs">
+      <div class="tab active" data-role="students">Students</div>
+      <div class="tab" data-role="counselors">Counselors</div>
+      <div class="tab" data-role="admins">Admins</div>
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="addBtn">+ Add</button>
+      <button class="btn" id="bulkUploadBtn">Bulk Upload</button>
+      <button class="btn" id="aimlBtn">Train & Predict (AIML)</button>
+      <button class="btn secondary" id="resetRisksBtn" style="margin-left:6px;background:#ef4444;color:#fff">Reset All Risks</button>
+      <input id="search" class="search" placeholder="Search by name/email/PIN" />
+      <button class="btn secondary" id="refreshBtn">Refresh</button>
+    </div>
+
+    <table>
+      <thead id="thead"></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </main>
+
+  <!-- Create/Edit Modal -->
+  <div id="crudModal" class="modal" aria-hidden="true">
+    <div class="card">
+      <h2 id="modalTitle" style="margin-top:0">Add</h2>
+      <div class="grid" id="formGrid"></div>
+      <div class="linker" id="linker" style="display:none"></div>
+      <div class="row">
+        <button class="btn secondary" id="cancelBtn">Cancel</button>
+        <button class="btn" id="saveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk Upload Modal -->
+  <div id="uploadModal" class="modal" aria-hidden="true">
+    <div class="card">
+      <h2 style="margin-top:0">Bulk Upload Students</h2>
+      <div style="font-size:13px;color:#374151;margin-bottom:8px">Upload a CSV or XLSX file. Required columns: Name, PIN or Email. Parent and Counselor columns optional. No risk prediction will be run; risk fields will be left null.</div>
+      <input id="uploadFile" type="file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" />
+      <div style="margin-top:12px"><button class="btn" id="previewUploadBtn">Preview</button> <button class="btn secondary" id="importAllBtn" style="display:none;margin-left:8px">Import All</button> <button class="btn" id="closeUploadBtn" style="margin-left:8px">Close</button></div>
+      <div id="uploadStatus" style="margin-top:12px"></div>
+      <div id="uploadPreview" style="margin-top:12px;max-height:300px;overflow:auto"></div>
+    </div>
+  </div>
+
+  <!-- AIML Train & Predict Modal -->
+  <div id="aimlModal" class="modal" aria-hidden="true">
+    <div class="card">
+      <h2 style="margin-top:0">AIML Train & Predict</h2>
+      <div style="font-size:13px;color:#374151;margin-bottom:8px">This will train a small in-browser model on stored student features (attendance, CGPA, stress). If no explicit dropout labels exist, the existing `risk` field will be used as a fallback label (High -> positive). The model coefficients will be stored in localStorage so you can re-run predictions without retraining if desired.</div>
+      <div id="aimlStatus" style="margin-top:8px;color:#374151"></div>
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+  <input id="apiBaseInput" type="text" style="flex:1;padding:8px;border:1px solid #e5e7eb;border-radius:8px" placeholder="API base URL (e.g. http://127.0.0.1:5000)" />
+  <button type="button" class="btn secondary" id="apiTestBtn">Test</button>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+        <label style="font-size:13px;color:#374151">High threshold</label>
+        <input id="highThresholdInput" type="number" min="0" max="1" step="0.01" style="width:80px;padding:6px;border:1px solid #e5e7eb;border-radius:6px" />
+        <label style="font-size:13px;color:#374151">Medium threshold</label>
+        <input id="medThresholdInput" type="number" min="0" max="1" step="0.01" style="width:80px;padding:6px;border:1px solid #e5e7eb;border-radius:6px" />
+        <button type="button" class="btn secondary" id="saveThresholdsBtn" style="margin-left:8px">Save</button>
+        <button type="button" class="btn" id="viewSavedBtn" style="margin-left:8px">View Saved Predictions</button>
+        <button type="button" class="btn" id="resetModelsBtn" style="margin-left:8px;background:#ef4444;color:#fff">Reset Models (local + server)</button>
+      </div>
+      <div id="apiTestResult" style="margin-top:8px;color:#6b7280;font-size:13px"></div>
+      <div style="margin-top:12px">
+  <button type="button" class="btn" id="startTrainBtn">Train Model (Local)</button>
+  <button type="button" class="btn secondary" id="runPredictBtn" style="margin-left:8px;display:none">Run Prediction (Local)</button>
+  <button type="button" class="btn secondary" id="trainServerBtn" style="margin-left:8px">Train on Server</button>
+  <button type="button" class="btn" id="serverPredictBtn" style="margin-left:8px">Use Server Model</button>
+  <button type="button" class="btn" id="exportPredictionsBtn" style="margin-left:8px;">Export CSV</button>
+  <button type="button" class="btn" id="closeAIMLBtn" style="margin-left:8px">Close</button>
+      </div>
+      <div id="aimlResults" style="margin-top:12px;max-height:300px;overflow:auto"></div>
+      <!-- compact server failure card (hidden by default) -->
+      <div id="serverFailCard" style="display:none;margin-top:12px;padding:12px;border-radius:10px;border:1px solid #fca5a5;background:#fff7f7">
+        <div id="serverFailMsg" style="color:#991b1b;font-size:14px;margin-bottom:8px">Server not reachable</div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button id="serverRetryBtn" class="btn secondary">Retry</button>
+          <button id="serverUseLocalBtn" class="btn">Use Local Model</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <script src="admin.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="admin-theme.js"></script>
+  <script>
+    const state = { role: 'students', editingId: null };
+
+    const $thead = document.getElementById('thead');
+    const $tbody = document.getElementById('tbody');
+    const $tabs = document.querySelectorAll('.tab');
+    const $addBtn = document.getElementById('addBtn');
+    const $refreshBtn = document.getElementById('refreshBtn');
+    const $search = document.getElementById('search');
+
+    const $modal = document.getElementById('crudModal');
+    const $modalTitle = document.getElementById('modalTitle');
+    const $formGrid = document.getElementById('formGrid');
+    const $linker = document.getElementById('linker');
+    const $cancelBtn = document.getElementById('cancelBtn');
+    const $saveBtn = document.getElementById('saveBtn');
+
+    const columns = {
+      students: [
+        { key:'name', label:'Name' },
+        { key:'pin', label:'PIN' },
+        { key:'dropoutProb', label:'Dropout %' },
+        { key:'email', label:'Email' },
+        { key:'mobile', label:'Mobile' },
+        { key:'branch', label:'Branch' },
+        { key:'department', label:'Department' },
+        { key:'attendance', label:'Attendance %' },
+        { key:'cgpa', label:'CGPA' },
+        { key:'risk', label:'Risk' },
+        { key:'parentId', label:'Parent' },
+        { key:'counselorId', label:'Counselor' },
+        { key:'__actions', label:'Actions' },
+      ],
+      counselors: [
+        { key:'name', label:'Name' },
+        { key:'email', label:'Email' },
+        { key:'specializations', label:'Specializations' },
+        { key:'qualifications', label:'Qualifications' },
+        { key:'experience', label:'Experience (yrs)' },
+        { key:'__actions', label:'Actions' },
+      ],
+      admins: [
+        { key:'name', label:'Name' },
+        { key:'email', label:'Email' },
+        { key:'__actions', label:'Actions' }
+      ],
+    };
+
+    function chipRisk(r){
+      if(r==='High') return `<span class="chip high">High</span>`;
+      if(r==='Medium') return `<span class="chip med">Medium</span>`;
+      return `<span class="chip low">Low</span>`;
+    }
+
+    function render(){
+      const role = state.role;
+      const list = EduCareAdmin.list(role);
+
+      // header
+      $thead.innerHTML = `<tr>${columns[role].map(c=>`<th>${c.label}</th>`).join('')}</tr>`;
+
+      const q = ($search.value||'').toLowerCase();
+      const filtered = list.filter(item => {
+        const s = JSON.stringify(item).toLowerCase();
+        return s.includes(q);
+      });
+
+      // body
+      $tbody.innerHTML = filtered.map(item => {
+        const tds = columns[role].map(c => {
+          if (c.key==='__actions') {
+            return `<td>
+              <button class="btn" onclick="editItem('${role}','${item.id}')">Edit</button>
+              <button class="btn danger" onclick="deleteItem('${role}','${item.id}')">Delete</button>
+            </td>`;
+          }
+          let val = item[c.key];
+          if (role==='students'){
+            if (c.key==='dropoutProb'){
+              const p = item.dropoutProb;
+              return `<td>${(typeof p==='number') ? (p*100).toFixed(1)+'%' : '-'}</td>`;
+            }
+            if (c.key==='risk') return `<td>${chipRisk(item.risk)}</td>`;
+            if (c.key==='parentId'){const p = EduCareAdmin.getById('parents', item.parentId||''); return `<td>${p? p.name : '-'}</td>`}
+            if (c.key==='counselorId'){const co = EduCareAdmin.getById('counselors', item.counselorId||''); return `<td>${co? co.name : '-'}</td>`}
+          }
+          
+          // parents tab removed from UI — parent linking still handled in student modal
+          if (role==='counselors'){
+            if (c.key==='specializations'){
+              const specs = Array.isArray(item.specializations)? item.specializations.join(', ') : (item.specializations||'');
+              return `<td>${specs || '-'}</td>`;
+            }
+            if (c.key==='qualifications'){
+              return `<td>${item.qualifications || '-'}</td>`;
+            }
+            if (c.key==='experience'){
+              return `<td>${(item.experience!==undefined && item.experience!==null) ? item.experience : '-'}</td>`;
+            }
+          }
+          return `<td>${val ?? '-'}</td>`;
+        }).join('');
+        return `<tr>${tds}</tr>`;
+      }).join('');
+    }
+
+    // Public handlers for action buttons
+    window.editItem = (role,id) => {
+      state.role = role; state.editingId = id; openModal('Edit');
+    }
+    window.deleteItem = (role,id) => {
+      if (!confirm('Delete this item?')) return;
+      EduCareAdmin.remove(role, id);
+      if (role==='students') {
+        // re-evaluate risk distribution on delete implicitly via store update
+      }
+      render();
+    }
+
+    // Tabs & controls
+    $tabs.forEach(t=>t.addEventListener('click',()=>{
+      $tabs.forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      state.role = t.dataset.role; state.editingId = null; render();
+    }));
+    $addBtn.addEventListener('click',()=>{ state.editingId=null; openModal('Add'); });
+    $refreshBtn.addEventListener('click',render);
+    $search.addEventListener('input',render);
+
+    const resetRisksBtn = document.getElementById('resetRisksBtn');
+    if (resetRisksBtn) {
+      resetRisksBtn.addEventListener('click', ()=>{
+        if (!confirm('Reset risk and dropout probability for ALL students? This cannot be undone.')) return;
+        try{
+          const students = EduCareAdmin.list('students') || [];
+          let count = 0;
+          students.forEach(s => {
+            try{
+              EduCareAdmin.update('students', s.id, { risk: null, dropoutProb: null });
+              count++;
+            }catch(e){ /* ignore per-row errors */ }
+          });
+          render();
+          alert(`Reset risk for ${count} students`);
+        }catch(err){
+          console.error('reset all risks failed', err);
+          alert('Failed to reset risks: ' + (err && err.message ? err.message : err));
+        }
+      });
+    }
+
+    // Bulk upload handlers
+    const $bulkUploadBtn = document.getElementById('bulkUploadBtn');
+    const $uploadModal = document.getElementById('uploadModal');
+    const $uploadFile = document.getElementById('uploadFile');
+    const $previewUploadBtn = document.getElementById('previewUploadBtn');
+    const $importAllBtn = document.getElementById('importAllBtn');
+    const $closeUploadBtn = document.getElementById('closeUploadBtn');
+    const $uploadStatus = document.getElementById('uploadStatus');
+    const $uploadPreview = document.getElementById('uploadPreview');
+
+  $bulkUploadBtn.addEventListener('click', ()=>{ setModalOpen($uploadModal, true); $uploadStatus.innerHTML=''; $uploadPreview.innerHTML=''; $importAllBtn.style.display='none'; });
+  $closeUploadBtn.addEventListener('click', ()=>{ setModalOpen($uploadModal, false); });
+
+    function compactKey(s){ return (s===undefined||s===null)?'':String(s).toLowerCase().replace(/[^a-z0-9]+/g,''); }
+
+    function parseCSV(text){
+      const lines = text.trim().split(/\r?\n/).filter(Boolean);
+      if(!lines.length) return [];
+      const headerLine = lines[0];
+      const delim = headerLine.indexOf('\t') !== -1 ? '\t' : ',';
+      const headers = headerLine.split(delim).map(h=>h.trim());
+      return lines.slice(1).map(l=>{
+        const vals = l.split(delim);
+        const obj = {};
+        headers.forEach((h,i)=> obj[h] = (vals[i]||'').trim());
+        return obj;
+      });
+    }
+
+    let uploadRows = [];
+
+    $previewUploadBtn.addEventListener('click', ()=>{
+      const f = $uploadFile.files[0];
+      if(!f){ $uploadStatus.innerHTML = '<div style="color:#ca8a04">Please choose a file</div>'; return; }
+      const name = f.name.toLowerCase();
+      if(name.endsWith('.csv')){
+        const reader = new FileReader();
+        reader.onload = e=>{ uploadRows = parseCSV(e.target.result); renderUploadPreview(); };
+        reader.readAsText(f);
+      } else if(name.endsWith('.xlsx')){
+        const reader = new FileReader();
+        reader.onload = e=>{
+          const wb = XLSX.read(e.target.result, {type:'binary'});
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          uploadRows = XLSX.utils.sheet_to_json(sheet);
+          renderUploadPreview();
+        };
+        reader.readAsBinaryString(f);
+      } else { $uploadStatus.innerHTML = '<div style="color:#ca8a04">Unsupported file type</div>'; }
+    });
+
+    function renderUploadPreview(){
+      if(!uploadRows.length){ $uploadPreview.innerHTML = '<div>No rows parsed</div>'; return; }
+      const cols = Object.keys(uploadRows[0]);
+      let html = `<table style="width:100%;border-collapse:collapse"><thead><tr>`;
+      cols.forEach(c=> html += `<th style="border-bottom:1px solid #eee;padding:6px;text-align:left">${c}</th>`);
+      html += `<th style="border-bottom:1px solid #eee;padding:6px;text-align:left">Status</th></tr></thead><tbody>`;
+      uploadRows.forEach((r,i)=>{
+        const cells = cols.map(c=>`<td style="padding:6px;border-bottom:1px solid #f3f4f6">${r[c]??''}</td>`).join('');
+        html += `<tr id="upload_row_${i}">${cells}<td id="upload_status_${i}" style="padding:6px">Pending</td></tr>`;
+      });
+      html += '</tbody></table>';
+      $uploadPreview.innerHTML = html;
+      $uploadStatus.innerHTML = `<div style="color:#16a34a">Parsed ${uploadRows.length} rows</div>`;
+      $importAllBtn.style.display = 'inline-block';
+    }
+
+    function upsertFromRow(row){
+      // normalize lookup keys
+      const map = {};
+      Object.keys(row).forEach(k=> map[compactKey(k)] = row[k]);
+      const get = (...cands)=>{ for(const c of cands){ const v = map[compactKey(c)]; if(typeof v !== 'undefined' && v !== null && String(v).trim()!=='') return String(v).trim(); } return ''; };
+
+      const name = get('Name','Student Name') || 'Unnamed';
+      const pin = get('PIN','Pin No','pin') || '';
+      const email = get('Email','Student Email','studentemail') || '';
+      const mobile = get('Mobile','Student Mobile') || '';
+      const branch = get('Branch')||'';
+      const department = get('Department')||'';
+      const cgpa = Number(get('CGPA','cgpa')||0) || null;
+      const stress = Number(get('Stress Level','Stress')||0) || null;
+      const attendance = Number(get('Attendance (%)','Attendance')||0) || null;
+      const gender = get('GENDER','Gender')||'';
+      const password = get('Password','Pasword') || '';
+
+      const parentName = get('ParentNAME','Parent Name') || '';
+      const parentEmail = get('PARENT MAIL','Parent Mail','parentemail') || '';
+      const parentPassword = get('PARENT PASSWORD','Parent Password') || '';
+      const parentMobile = get('PARENT MOBILE','Parent Mobile') || '';
+
+      const counselorName = get('Counselor Name','Counselor') || '';
+
+      // upsert student
+      let student = null;
+      const students = EduCareAdmin.list('students');
+      if(pin) student = students.find(s=> (s.pin||'').toString().toLowerCase() === pin.toLowerCase());
+      if(!student && email) student = students.find(s=> (s.email||'').toLowerCase() === email.toLowerCase());
+      if(!student && name) student = students.find(s=> (s.name||'').toLowerCase() === name.toLowerCase());
+
+      if(student){
+        EduCareAdmin.update('students', student.id, { name, pin, email: email||student.email, mobile: mobile||student.mobile, branch: branch||student.branch, department: department||student.department, cgpa: cgpa===null? student.cgpa : cgpa, stress: stress===null? student.stress : stress, attendance: attendance===null? student.attendance : attendance, gender: gender||student.gender, password: password||student.password, risk: null });
+      } else {
+        student = EduCareAdmin.create('students', { name, pin, email, mobile, branch, department, cgpa, stress, attendance, gender, password, risk: null });
+      }
+
+      // upsert parent
+      let parent = null;
+      const parents = EduCareAdmin.list('parents');
+      if(parentEmail) parent = parents.find(p=> (p.email||'').toLowerCase() === parentEmail.toLowerCase());
+      if(!parent && student && student.parentId) parent = parents.find(p=> p.id === student.parentId) || null;
+      if(!parent && parentName) parent = parents.find(p=> (p.name||'').toLowerCase() === parentName.toLowerCase());
+
+      if(parent){
+        EduCareAdmin.update('parents', parent.id, { name: parentName||parent.name, email: parentEmail||parent.email, mobile: parentMobile||parent.mobile, password: parentPassword||parent.password, studentId: student.id });
+      } else if(parentName || parentEmail){
+        parent = EduCareAdmin.create('parents', { name: parentName||('Parent of '+name), email: parentEmail||'', mobile: parentMobile||'', password: parentPassword||'', studentId: student.id });
+      }
+      if(parent) EduCareAdmin.linkParent(student.id, parent.id);
+
+      // upsert counselor
+      if(counselorName){
+        let counselor = EduCareAdmin.list('counselors').find(c=> (c.name||'').toLowerCase() === counselorName.toLowerCase() || ((c.email||'') && (c.email||'').toLowerCase() === counselorName.toLowerCase()));
+        if(!counselor) counselor = EduCareAdmin.create('counselors', { name: counselorName, email: '', password: '' });
+        if(counselor) EduCareAdmin.assignCounselor(student.id, counselor.id);
+      }
+
+      return { studentId: student.id, parentId: parent? parent.id: null };
+    }
+
+    $importAllBtn.addEventListener('click', async ()=>{
+      if(!uploadRows.length) return;
+      $importAllBtn.disabled = true;
+      const results = [];
+      for(let i=0;i<uploadRows.length;i++){
+        try{
+          const res = upsertFromRow(uploadRows[i]);
+          document.getElementById(`upload_status_${i}`).innerText = 'Imported';
+          results.push({row:i,status:'imported',info:res});
+        }catch(err){
+          console.error('import row failed',err);
+          document.getElementById(`upload_status_${i}`).innerText = 'Error';
+          results.push({row:i,status:'error',error:err.toString()});
+        }
+      }
+      $uploadStatus.innerHTML = `<div style="color:#16a34a">Imported ${results.filter(r=>r.status==='imported').length} / ${uploadRows.length}</div>`;
+  $importAllBtn.disabled = false;
+  // refresh main table
+  render();
+  setModalOpen($uploadModal, false);
+    });
+
+    // Modal logic
+    // Helper to open/close a modal while keeping accessibility correct:
+    // - toggle the visible class
+    // - set aria-hidden appropriately on the modal
+    // - mark the main content with `inert` while a modal is open so focus
+    //   and assistive technology are blocked from background content
+    // - focus the first focusable element inside the modal when opened
+    function setModalOpen(modalEl, open){
+      const mainEl = document.querySelector('main');
+      if(open){
+        modalEl.classList.add('open');
+        modalEl.setAttribute('aria-hidden','false');
+        if(mainEl) mainEl.setAttribute('inert','');
+        // focus first focusable element inside modal
+        const focusable = modalEl.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if(focusable && typeof focusable.focus === 'function') focusable.focus();
+      } else {
+        modalEl.classList.remove('open');
+        modalEl.setAttribute('aria-hidden','true');
+        if(mainEl) mainEl.removeAttribute('inert');
+      }
+    }
+
+    // Toast helper for success/error/info messages
+    function showToast(msg, type='info', timeout=4000){
+      try{
+        const c = document.getElementById('toastContainer');
+        const el = document.createElement('div');
+        el.style.marginTop = '8px';
+        el.style.padding = '8px 12px';
+        el.style.borderRadius = '8px';
+        el.style.color = '#fff';
+        el.style.minWidth = '200px';
+        el.style.boxShadow = '0 6px 18px rgba(0,0,0,.12)';
+        el.style.fontSize = '13px';
+        if(type==='success'){ el.style.background = '#16a34a'; } else if(type==='error'){ el.style.background = '#ef4444'; } else { el.style.background = '#2563eb'; }
+        el.textContent = msg;
+        c.appendChild(el);
+        setTimeout(()=>{ try{ el.style.opacity = '0'; setTimeout(()=>el.remove(), 300); }catch{} }, timeout);
+      }catch(e){ console.log('toast failed', e); }
+    }
+
+    // Compact server-failure card helpers
+    let lastServerFailureRetry = null;
+    function showServerFailure(message, retryCb){
+      try{
+        hideServerFailure();
+        const card = document.getElementById('serverFailCard');
+        const msgEl = document.getElementById('serverFailMsg');
+        const retryBtn = document.getElementById('serverRetryBtn');
+        const useLocalBtn = document.getElementById('serverUseLocalBtn');
+        if(!card || !msgEl || !retryBtn || !useLocalBtn) return;
+        msgEl.innerHTML = message;
+        lastServerFailureRetry = retryCb || null;
+        retryBtn.onclick = ()=>{ hideServerFailure(); if(typeof lastServerFailureRetry === 'function'){ try{ lastServerFailureRetry(); }catch(e){ console.error('retry cb failed', e); showToast('Retry failed','error'); } } };
+        useLocalBtn.onclick = ()=>{ hideServerFailure(); showToast('Switching to local model','info'); aimlStatus.textContent = 'Using local model...'; const model = loadModelFromStorage(); if(model){ runPredictBtn.style.display = 'inline-block'; runPredictBtn.click(); } else { aimlStatus.textContent = 'No local model found. Train a local model first.'; } };
+        card.style.display = 'block';
+      }catch(e){ console.error('showServerFailure error', e); }
+    }
+    function hideServerFailure(){ try{ const card = document.getElementById('serverFailCard'); if(card) card.style.display='none'; lastServerFailureRetry = null; }catch(e){}
+    }
+
+    function openModal(mode){
+      const role = state.role; const id = state.editingId;
+      setModalOpen($modal, true);
+      $modalTitle.textContent = `${mode} ${role.slice(0,-1).replace(/^./,c=>c.toUpperCase())}`;
+
+      const current = id? EduCareAdmin.getById(role,id) : {};
+      buildForm(role, current);
+
+      $saveBtn.onclick = () => save(role, id);
+    }
+    $cancelBtn.addEventListener('click',()=> setModalOpen($modal, false));
+    $modal.addEventListener('click', (e)=>{ if(e.target===$modal) setModalOpen($modal, false); });
+
+    function inputField(key,label,type='text',value=''){
+      return `<div class="field"><label>${label}</label><input id="f_${key}" type="${type}" value="${value??''}" /></div>`;
+    }
+    function radioField(key,label,items,value=''){
+      const radios = items.map(i=>{
+        const id = `f_${key}_${i.value}`;
+        const checked = i.value==value ? 'checked' : '';
+        return `<div style="display:flex;align-items:center;gap:8px"><input id="${id}" name="f_${key}" type="radio" value="${i.value}" ${checked} /><label for="${id}" style="margin:0">${i.label}</label></div>`;
+      }).join('');
+      return `<div class="field"><label>${label}</label><div style="display:flex;gap:12px">${radios}</div></div>`;
+    }
+    function checkboxField(key,label,checked){
+      const id = `f_${key}`;
+      const ch = checked ? 'checked' : '';
+      return `<div class="field"><label>${label}</label><div style="display:flex;align-items:center;gap:8px"><input id="${id}" type="checkbox" ${ch} /><label for="${id}" style="margin:0">Lock (prevent reassignment)</label></div></div>`;
+    }
+    function selectField(key,label,options,value=''){
+      const opts = options.map(o=>`<option value="${o.value}" ${o.value==value?'selected':''}>${o.label}</option>`).join('');
+      return `<div class="field"><label>${label}</label><select id="f_${key}">${opts}</select></div>`;
+    }
+
+    function buildForm(role, data){
+      $formGrid.innerHTML='';
+      $linker.style.display='none';
+      if (role==='students'){
+        // department options: cse,ece,eee,ee,me,civil
+        const departments = [
+          {label:'CSE', value:'CSE'},{label:'ECE', value:'ECE'},{label:'EEE', value:'EEE'},{label:'EE', value:'EE'},{label:'ME', value:'ME'},{label:'Civil', value:'Civil'}
+        ];
+        // branch options: engineering, polytechnic, pharmacy
+        const branches = [
+          {label:'Engineering', value:'Engineering'},{label:'Polytechnic', value:'Polytechnic'},{label:'Pharmacy', value:'Pharmacy'}
+        ];
+
+        $formGrid.innerHTML = [
+          inputField('name','Name','text',data.name),
+          inputField('pin','PIN','text',data.pin),
+          inputField('mobile','Mobile','tel',data.mobile),
+          inputField('email','Email','email',data.email),
+          inputField('password','Password','password',data.password || ''),
+          selectField('department','Department',departments,data.department||''),
+          selectField('branch','Branch',branches,data.branch||''),
+          radioField('gender','Gender',[{label:'Male',value:'male'},{label:'Female',value:'female'},{label:'Other',value:'other'}],data.gender||'male'),
+          inputField('attendance','Attendance %','number',data.attendance),
+          inputField('cgpa','CGPA','number',data.cgpa),
+          selectField('stress','Stress (1-10)',Array.from({length:10},(_,i)=>({label:String(i+1),value:i+1})),data.stress||1)
+        ].join('');
+        // Linkers
+        // show only unlocked parents or the currently linked parent so locked parents can't be reassigned
+        const parents = EduCareAdmin.list('parents')
+          .filter(p => !p.locked || p.id === data.parentId)
+          .map(p=>({label:p.name + (p.locked? ' 🔒' : ''), value:p.id}));
+        const counselors = EduCareAdmin.list('counselors').map(c=>({label:c.name, value:c.id}));
+  $linker.style.display='block';
+  const parentDetails = data.parentId ? (EduCareAdmin.getById('parents', data.parentId) || {}) : {};
+  $linker.innerHTML = `
+          <div style="font-weight:600;margin-bottom:8px">Links</div>
+          <div class="grid">
+            ${selectField('counselorId','Counselor', [{label:'(none)', value:''}, ...counselors], data.counselorId||'')}
+          </div>
+          <div style="margin-top:12px;border-top:1px dashed #eee;padding-top:12px">
+            <div style="font-size:13px;color:#374151;margin-bottom:8px;font-weight:600">Parent details (create/update here)</div>
+            <div class="grid">
+              <div class="field"><label>Parent Name</label><input id="f_parent_name" type="text" value="${parentDetails.name||''}" /></div>
+              <div class="field"><label>Parent Email</label><input id="f_parent_email" type="email" value="${parentDetails.email||''}" /></div>
+              <div class="field"><label>Parent Password</label><input id="f_parent_password" type="password" value="${parentDetails.password||''}" /></div>
+              <div class="field"><label>Parent Mobile</label><input id="f_parent_mobile" type="tel" value="${parentDetails.mobile||''}" /></div>
+            </div>
+            <div style="font-size:12px;color:#6b7280;margin-top:8px">Fill these fields to create or update the student's parent; leave all parent fields empty to unlink any previously linked parent.</div>
+          </div>`;
+      }
+      // parents tab intentionally removed — parent create/update remains inline in student modal
+      if (role==='counselors'){
+          $formGrid.innerHTML = [
+            inputField('name','Name','text',data.name),
+            inputField('email','Email','email',data.email),
+            inputField('password','Password','password',data.password || ''),
+            inputField('specializations','Specializations (comma separated)','text',(Array.isArray(data.specializations)? data.specializations.join(', '): (data.specializations||''))),
+            inputField('qualifications','Qualifications','text',data.qualifications||''),
+            inputField('experience','Experience (years)','number',data.experience||'')
+          ].join('');
+      }
+      if (role==='admins'){
+        $formGrid.innerHTML = [
+            inputField('name','Name','text',data.name),
+            inputField('email','Email','email',data.email),
+            inputField('password','Password','password',data.password || '')
+        ].join('');
+      }
+    }
+
+    function val(id){ 
+      const el = document.getElementById('f_'+id);
+      if (el){
+        if (el.type === 'checkbox') return el.checked;
+        return el.value;
+      }
+      // fallback for radio groups (name=f_<id>)
+      const radios = document.getElementsByName('f_'+id);
+      if (radios && radios.length){
+        for (let r of radios) if (r.checked) return r.value;
+        return radios[0].value || '';
+      }
+      return '';
+    }
+    function num(id){ const v=Number(val(id)); return isNaN(v)? undefined : v; }
+
+    function save(role, id){
+      if (role==='students'){
+        const payload = {
+          name: val('name'), pin: val('pin'), mobile: val('mobile'), email: val('email'), password: val('password'),
+          gender: val('gender'), branch: val('branch'), department: val('department'),
+          attendance: num('attendance'), cgpa: num('cgpa'), stress: Number(val('stress'))
+        };
+        // compute risk on save
+        payload.risk = EduCareAdmin.computeRisk({ attendance: payload.attendance, cgpa: payload.cgpa, stress: payload.stress });
+
+        if (id) EduCareAdmin.update('students', id, payload); else id = EduCareAdmin.create('students', payload).id;
+
+        // Inline parent create/update/unlink (no parent selector)
+        const counselorId = val('counselorId');
+        const pName = val('parent_name');
+        const pEmail = val('parent_email');
+        const pPassword = val('parent_password');
+        const pMobile = val('parent_mobile');
+
+        // get the current student record to check existing linked parent
+        const existingStudent = EduCareAdmin.getById('students', id) || {};
+        const existingParentId = existingStudent.parentId;
+
+        if (pName || pEmail || pPassword || pMobile) {
+          // create or update parent and ensure it's linked to this student
+          if (existingParentId) {
+            // update existing parent
+            const pPatch = {};
+            if (pName) pPatch.name = pName;
+            if (pEmail) pPatch.email = pEmail;
+            if (pPassword) pPatch.password = pPassword;
+            if (pMobile) pPatch.mobile = pMobile;
+            if (Object.keys(pPatch).length) EduCareAdmin.update('parents', existingParentId, pPatch);
+            // ensure link is present
+            EduCareAdmin.linkParent(id, existingParentId);
+          } else {
+            // create new parent and link
+            const newParent = EduCareAdmin.create('parents', { name: pName || ('Parent of ' + payload.name), email: pEmail || '', mobile: pMobile || '', password: pPassword || '', studentId: id });
+            EduCareAdmin.linkParent(id, newParent.id);
+          }
+        } else {
+          // no parent data entered -> unlink previous parent if exists
+          if (existingParentId) {
+            EduCareAdmin.update('parents', existingParentId, { studentId: null });
+            EduCareAdmin.update('students', id, { parentId: null });
+          }
+        }
+
+        if (counselorId) EduCareAdmin.assignCounselor(id, counselorId);
+      }
+      
+      // parents management removed from User Management UI; parent linking still occurs inline from student modal
+      if (role==='counselors'){
+          const specsRaw = val('specializations') || '';
+          const payload = {
+            name: val('name'),
+            email: val('email'),
+            password: val('password'),
+            specializations: specsRaw ? specsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [],
+            qualifications: val('qualifications'),
+            experience: num('experience')
+          };
+          if (id) EduCareAdmin.update('counselors', id, payload); else EduCareAdmin.create('counselors', payload);
+      }
+        if (role==='admins'){
+          const payload = { name: val('name'), email: val('email'), password: val('password') };
+          if (id) EduCareAdmin.update('admins', id, payload); else id = EduCareAdmin.create('admins', payload).id;
+        }
+
+  setModalOpen($modal, false);
+  render();
+    }
+
+    // Initial
+    render();
+    EduCareAdmin.onStoreUpdated(render);
+    // --- AIML training & prediction logic ---
+    const aimlBtn = document.getElementById('aimlBtn');
+    const aimlModal = document.getElementById('aimlModal');
+    const startTrainBtn = document.getElementById('startTrainBtn');
+    const runPredictBtn = document.getElementById('runPredictBtn');
+    const closeAIMLBtn = document.getElementById('closeAIMLBtn');
+  const aimlStatus = document.getElementById('aimlStatus');
+  const aimlResults = document.getElementById('aimlResults');
+  const trainServerBtn = document.getElementById('trainServerBtn');
+  const serverPredictBtn = document.getElementById('serverPredictBtn');
+  const exportPredictionsBtn = document.getElementById('exportPredictionsBtn');
+  const apiBaseInput = document.getElementById('apiBaseInput');
+  const apiTestBtn = document.getElementById('apiTestBtn');
+  const apiTestResult = document.getElementById('apiTestResult');
+  const highThresholdInput = document.getElementById('highThresholdInput');
+  const medThresholdInput = document.getElementById('medThresholdInput');
+  const saveThresholdsBtn = document.getElementById('saveThresholdsBtn');
+  const viewSavedBtn = document.getElementById('viewSavedBtn');
+  const resetModelsBtn = document.getElementById('resetModelsBtn');
+  let lastPredictions = []; // store last prediction rows for export
+
+    function sigmoid(z){ return 1/(1+Math.exp(-z)); }
+
+    // Collect training data from store. Features: attendance (0-100), cgpa (0-10), stress (1-10)
+    function collectTrainingData(){
+      const students = EduCareAdmin.list('students') || [];
+      const X = [];
+      const y = [];
+      // include persisted training examples from localStorage
+      const persisted = loadTrainingExamples();
+      if(persisted && persisted.length){
+        persisted.forEach(e=>{
+          X.push([Number(e.attendance||0)/100, Number(e.cgpa||0)/10, Number(e.stress||0)/10]);
+          y.push(Number(e.label));
+        });
+      }
+      students.forEach(s=>{
+        const att = Number(s.attendance) || 0;
+        const cg = Number(s.cgpa) || 0;
+        const st = Number(s.stress) || 0;
+        // determine label: prefer explicit dropout flag fields, otherwise map risk->label
+        let label = null;
+        if (typeof s.dropped !== 'undefined') label = s.dropped ? 1 : 0;
+        if (label===null && typeof s.droppedOut !== 'undefined') label = s.droppedOut ? 1 : 0;
+        if (label===null && typeof s.actual_dropout !== 'undefined') label = s.actual_dropout ? 1 : 0;
+        if (label===null && s.risk){
+          // treat 'High' and 'Medium' as positive labels to increase sensitivity when dataset is small
+          const rl = String(s.risk).toLowerCase();
+          label = (rl === 'high' || rl === 'medium') ? 1 : 0;
+        }
+        if (label===null) return; // skip rows without label
+        X.push([att/100, cg/10, st/10]);
+        y.push(label);
+      });
+      return { X, y };
+    }
+
+    // Training examples persisted locally (admin feedback)
+    function loadTrainingExamples(){
+      try{ const s = localStorage.getItem('educare_training_examples'); return s? JSON.parse(s): []; }catch(e){ return []; }
+    }
+    function saveTrainingExample(example){
+      try{
+        const arr = loadTrainingExamples();
+        // avoid exact duplicates (same student id and label)
+        if(!arr.find(x=> x.id === example.id && Number(x.label) === Number(example.label))){
+          arr.push(example);
+          localStorage.setItem('educare_training_examples', JSON.stringify(arr));
+        }
+        return true;
+      }catch(e){ return false; }
+    }
+
+    // Trains a logistic regression with gradient descent. Returns {weights: [w0,w1,w2], bias}
+    // Improved local logistic trainer using shuffled mini-batch SGD and L2 regularization
+    function trainLogistic(X, y, {lr=0.1, epochs=1000, l2=0.01, batchSize=16} = {}){
+      const m = X.length;
+      if (m===0) return null;
+      // initialize weights and bias
+      let w = [0,0,0];
+      let b = 0;
+
+  // inputs from collectTrainingData are already normalized to [0..1]
+  // (attendance 0-100 -> 0-1, cgpa 0-10 -> 0-1, stress 1-10 -> 0-1).
+  // Avoid double-normalizing here; simply coerce to numbers and use as-is.
+  const Xnorm = X.map(row => [ Number(row[0]||0), Number(row[1]||0), Number(row[2]||0) ]);
+
+      // helper: perform one gradient step on a batch
+      function step(batchIdxs){
+        const n = batchIdxs.length;
+        const grad = [0,0,0];
+        let db = 0;
+        for(const i of batchIdxs){
+          const xi = Xnorm[i];
+          const z = w[0]*xi[0] + w[1]*xi[1] + w[2]*xi[2] + b;
+          const p = sigmoid(z);
+          const err = p - y[i];
+          grad[0] += err * xi[0]; grad[1] += err * xi[1]; grad[2] += err * xi[2];
+          db += err;
+        }
+        // apply average gradient with L2 regularization
+        for(let j=0;j<3;j++){
+          w[j] = w[j] - lr * (grad[j]/n + l2 * w[j]);
+        }
+        b = b - lr * (db/n);
+      }
+
+      // training loop
+      for(let ep=0; ep<epochs; ep++){
+        // create shuffled index array
+        const idx = Array.from({length:m}, (_,i)=>i);
+        for(let i=m-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); const t=idx[i]; idx[i]=idx[j]; idx[j]=t; }
+        // mini-batches
+        for(let i=0;i<m;i+=batchSize){
+          const batchIdxs = idx.slice(i, i+batchSize);
+          step(batchIdxs);
+        }
+        // gentle lr decay every 200 epochs
+        if((ep+1) % 200 === 0) lr *= 0.9;
+      }
+      return { weights: w, bias: b };
+    }
+
+    function saveModelToStorage(model){
+      try{ localStorage.setItem('educare_aiml_model', JSON.stringify(model)); }catch(e){}
+    }
+    function loadModelFromStorage(){
+      try{ const s = localStorage.getItem('educare_aiml_model'); return s ? JSON.parse(s) : null; }catch(e){ return null; }
+    }
+
+    function predictForStudent(model, s){
+      const att = Number(s.attendance) || 0; const cg = Number(s.cgpa) || 0; const st = Number(s.stress) || 0;
+      const x = [att/100, cg/10, st/10];
+      // coerce weights/bias to numbers (handle stored strings)
+      const w = (model && model.weights && Array.isArray(model.weights)) ? model.weights.map(n=>Number(n)||0) : [0,0,0];
+      const b = Number(model && model.bias ? model.bias : 0) || 0;
+      const z = (w[0]||0)*x[0] + (w[1]||0)*x[1] + (w[2]||0)*x[2] + b;
+      return sigmoid(z);
+    }
+
+    aimlBtn.addEventListener('click', ()=>{
+      // open AIML modal using accessibility-aware helper
+      setModalOpen(aimlModal, true);
+      aimlStatus.textContent = '';
+      aimlResults.innerHTML = '';
+      apiBaseInput.value = getApiBase();
+      // load thresholds
+      const ht = localStorage.getItem('educare_high_threshold');
+      const mt = localStorage.getItem('educare_med_threshold');
+      highThresholdInput.value = ht !== null ? ht : '0.6';
+      medThresholdInput.value = mt !== null ? mt : '0.35';
+      apiTestResult.textContent = '';
+      const model = loadModelFromStorage();
+      runPredictBtn.style.display = model ? 'inline-block' : 'none';
+    });
+  closeAIMLBtn.addEventListener('click', ()=> setModalOpen(aimlModal, false));
+  // close AIML modal when clicking outside the card (overlay)
+  aimlModal.addEventListener('click', (e)=>{ if(e.target === aimlModal) setModalOpen(aimlModal, false); });
+
+    // API base helpers — allow pointing to a different local server
+    function getApiBase(){
+      try{ return localStorage.getItem('educare_api_base') || 'http://127.0.0.1:5000'; }catch(e){ return 'http://127.0.0.1:5000'; }
+    }
+    function setApiBase(v){ try{ localStorage.setItem('educare_api_base', v); }catch(e){} }
+
+    // Initialize API base input when opening the AIML modal
+    aimlBtn.addEventListener('click', ()=>{
+      apiBaseInput.value = getApiBase();
+      apiTestResult.textContent = '';
+    });
+
+    apiTestBtn.addEventListener('click', async ()=>{
+      const base = (apiBaseInput.value || getApiBase()).trim();
+      if(!base) return apiTestResult.textContent = 'Enter a valid base URL';
+      apiTestResult.textContent = 'Testing ' + base + ' ...';
+      try{
+        const r = await fetch((base.endsWith('/')? base.slice(0,-1) : base) + '/health', { method: 'GET' });
+        if(r.ok){ apiTestResult.textContent = 'OK — server reachable at ' + base; setApiBase(base); }
+        else apiTestResult.textContent = 'Server responded: ' + r.status;
+      }catch(err){ apiTestResult.innerHTML = 'Test failed: ' + (err.message || err) + '. Ensure the server is running and CORS is enabled.'; }
+    });
+
+    saveThresholdsBtn.addEventListener('click', ()=>{
+      const h = Number(highThresholdInput.value);
+      const m = Number(medThresholdInput.value);
+      if(!isFinite(h) || !isFinite(m) || h<=m){ aimlStatus.textContent = 'Invalid thresholds. Ensure High > Medium and both are numbers between 0 and 1.'; return; }
+      localStorage.setItem('educare_high_threshold', String(h));
+      localStorage.setItem('educare_med_threshold', String(m));
+      aimlStatus.textContent = `Thresholds saved (High=${h}, Medium=${m})`;
+    });
+
+    viewSavedBtn.addEventListener('click', async ()=>{
+      aimlStatus.textContent = 'Loading saved predictions...';
+      const base = getApiBase();
+      try{
+        const r = await fetch((base.endsWith('/')? base.slice(0,-1) : base) + '/predictions_saved', { method: 'GET' });
+        if(!r.ok) throw new Error('Server returned '+r.status);
+        const body = await r.json();
+        const rows = body.predictions || [];
+        if(!rows.length){ aimlResults.innerHTML = '<div>No saved predictions found</div>'; aimlStatus.textContent = 'No saved predictions'; return; }
+        let html = `<div style="font-weight:600;margin-bottom:8px">Saved predictions (${rows.length})</div><table style="width:100%;border-collapse:collapse"><thead><tr><th>id</th><th>Name</th><th>Prob</th><th>Risk</th></tr></thead><tbody>`;
+        rows.slice(-50).reverse().forEach(r => html += `<tr><td>${r.id||r.studentId||'-'}</td><td>${r.name||r.Name||'-'}</td><td>${((r.prob||r.probability||0)*100).toFixed(1)}%</td><td>${r.risk||'-'}</td></tr>`);
+        html += `</tbody></table>`;
+        aimlResults.innerHTML = html;
+        aimlStatus.textContent = `Loaded ${rows.length} saved predictions`;
+      }catch(err){ aimlStatus.textContent = 'Failed to load saved predictions: '+(err.message||err); }
+    });
+
+    // Reset trained models: clear local stored model & training examples, call server /reset_model
+    resetModelsBtn.addEventListener('click', async ()=>{
+      if(!confirm('This will remove all trained models and training examples locally and on the server. Continue?')) return;
+      aimlStatus.textContent = 'Clearing local model and training examples...';
+      try{
+        localStorage.removeItem('educare_aiml_model');
+        localStorage.removeItem('educare_training_examples');
+      }catch(e){}
+      // call server endpoint to clear server-side artifacts
+      const base = getApiBase();
+      try{
+        const r = await fetch((base.endsWith('/')? base.slice(0,-1) : base) + '/reset_model', { method: 'POST' });
+        if(!r.ok) throw new Error('Server returned '+r.status);
+        const body = await r.json();
+        aimlStatus.textContent = 'Reset completed on server.';
+        aimlResults.innerHTML = `<div style="color:#16a34a">Server reset removed: ${JSON.stringify(body.removed || [])}</div>`;
+        // refresh model info if needed
+        try{ const infoResp = await fetch((base.endsWith('/')? base.slice(0,-1) : base) + '/model_info'); if(infoResp.ok){ const info = await infoResp.json(); aimlResults.innerHTML += `<div>Model info: ${JSON.stringify(info)}</div>`;} }catch(e){}
+      }catch(err){ aimlStatus.textContent = 'Server reset failed: '+(err.message||err); }
+      // refresh UI
+      runPredictBtn.style.display = 'none';
+      lastPredictions = [];
+      render();
+    });
+
+    startTrainBtn.addEventListener('click', ()=>{
+      aimlStatus.textContent = 'Collecting data and labels...';
+      const {X,y} = collectTrainingData();
+      if (!X.length){ aimlStatus.textContent = 'No labeled training data found. Provide dropout labels or ensure some students have `risk` set.'; return; }
+      aimlStatus.textContent = `Training on ${X.length} labeled students...`;
+      setTimeout(()=>{
+        // use a moderate learning rate and more epochs for small datasets
+        const model = trainLogistic(X,y,{lr:0.3,epochs:1000});
+        if(!model){ aimlStatus.textContent = 'Training failed'; return; }
+        saveModelToStorage(model);
+        aimlStatus.textContent = 'Training complete. Model saved to localStorage.';
+        runPredictBtn.style.display = 'inline-block';
+        // show a quick summary of weights
+        aimlResults.innerHTML = `<div style="font-size:13px">Model weights: [${model.weights.map(w=>w.toFixed(3)).join(', ')}, bias: ${model.bias.toFixed(3)}]</div>`;
+      },100);
+    });
+
+    runPredictBtn.addEventListener('click', ()=>{
+      const model = loadModelFromStorage();
+      if(!model){ aimlStatus.textContent = 'No trained model found. Train first.'; return; }
+      aimlStatus.textContent = 'Running prediction for all students...';
+      const students = EduCareAdmin.list('students') || [];
+      const rows = [];
+      // Compute predictions and update the store in a single atomic write to avoid
+      // per-item update races that can cause other pages to miss intermediate state.
+      students.forEach(s=>{
+        const prob = predictForStudent(model, s);
+        const risk = prob >= 0.5 ? 'High' : (prob >= 0.25 ? 'Medium' : 'Low');
+        rows.push({ id: s.id, name: s.name, prob: prob, risk });
+      });
+
+      try{
+        // apply predicted risk/dropoutProb to students array atomically
+        const store = EduCareAdmin.getStore() || {};
+        store.users = store.users || {};
+        store.users.students = Array.isArray(store.users.students) ? store.users.students : [];
+        const studentsById = {};
+        store.users.students.forEach(st => { studentsById[String(st.id)] = st; });
+        rows.forEach(r => {
+          const st = studentsById[String(r.id)];
+          if(st){ st.risk = r.risk; st.dropoutProb = Number(r.prob); }
+        });
+        // write once to local store so listeners and other pages see the update
+        EduCareAdmin.setStore(store);
+        console.info('Local predictions applied atomically for', rows.length, 'students');
+      }catch(e){ console.warn('Failed to atomically persist predictions', e); }
+      // render results with feedback buttons to mark true outcome (persisted as training examples)
+      let html = `<div style="font-weight:600;margin-bottom:8px">Predicted ${rows.length} students</div><table style="width:100%;border-collapse:collapse"><thead><tr><th>Name</th><th>Prob</th><th>Risk</th><th>Feedback</th></tr></thead><tbody>`;
+  rows.forEach(r=> html += `<tr><td>${r.name||'-'}</td><td>${(typeof r.prob === 'number' ? (r.prob*100).toFixed(1) + '%' : '-')}</td><td>${r.risk||'-'}</td><td><button class="btn" onclick="markTrainingLabel('${r.id}',1)">Mark Dropped</button> <button class="btn secondary" onclick="markTrainingLabel('${r.id}',0)">Mark Not Dropped</button></td></tr>`);
+      html += `</tbody></table>`;
+      aimlResults.innerHTML = html;
+      aimlStatus.textContent = `Prediction complete: ${rows.filter(r=>r.risk==='High').length} High risk, ${rows.filter(r=>r.risk==='Medium').length} Medium.`;
+      // refresh UI
+      setTimeout(()=>{ render(); }, 50);
+      lastPredictions = rows;
+    });
+
+    // global function used by inline onclicks to record feedback
+    window.markTrainingLabel = function(id, label){
+      // Persist a training example AND update the student's record so feedback is stored permanently.
+      const s = EduCareAdmin.getById('students', id) || {};
+      const example = { id: id, attendance: Number(s.attendance||0), cgpa: Number(s.cgpa||0), stress: Number(s.stress||0), label: Number(label) };
+      const ok = saveTrainingExample(example);
+      try{
+        // Update multiple commonly-checked fields so collectTrainingData can find labels
+        EduCareAdmin.update('students', id, {
+          // canonical boolean flag
+          dropped: Number(label) === 1,
+          // older code paths check these variants
+          droppedOut: Number(label) === 1,
+          actual_dropout: Number(label) === 1
+        });
+      }catch(e){ console.warn('Failed to persist student label', e); }
+      aimlStatus.textContent = ok ? `Saved training example and persisted label for ${s.name||id} (label=${label})` : 'Saved training example but failed to persist label';
+    };
+
+    // Server prediction: POST features to Python server and accept flexible response formats
+    serverPredictBtn.addEventListener('click', async ()=>{
+      aimlStatus.textContent = 'Calling prediction server...';
+      const students = EduCareAdmin.list('students') || [];
+  if (!students.length){ showToast('No students to predict','error'); aimlStatus.textContent = 'No students to predict.'; return; }
+      const payload = students.map(s=>({ id: s.id, attendance: Number(s.attendance||0), cgpa: Number(s.cgpa||0), stress: Number(s.stress||0) }));
+      try{
+          const base = getApiBase();
+          const resp = await fetch((base.endsWith('/')? base.slice(0,-1) : base) + '/predict', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+        if(!resp.ok) throw new Error('Server returned '+resp.status);
+        const body = await resp.json();
+        let preds = body.predictions || body.prediction || body; // try common shapes
+        const rows = [];
+        if (Array.isArray(preds)){
+          // array could be numbers or objects
+          // read thresholds from localStorage (defaults)
+          const highThresh = Number(localStorage.getItem('educare_high_threshold') || 0.6);
+          const medThresh = Number(localStorage.getItem('educare_med_threshold') || 0.35);
+          if (preds.length === students.length && typeof preds[0] === 'number'){
+              for(let i=0;i<students.length;i++){
+                const prob = Number(preds[i]);
+                const risk = prob >= highThresh ? 'High' : (prob >= medThresh ? 'Medium' : 'Low');
+                EduCareAdmin.update('students', students[i].id, { risk, dropoutProb: prob });
+                rows.push({ id: students[i].id, name: students[i].name, prob, risk });
+              }
+          } else {
+            // assume array of {id, prob} or {prob} in same order
+            preds.forEach((p, idx)=>{
+                if (typeof p === 'number'){
+                const s = students[idx]; const prob = Number(p); const risk = prob >= highThresh ? 'High' : (prob >= medThresh ? 'Medium' : 'Low');
+                EduCareAdmin.update('students', s.id, { risk, dropoutProb: prob }); rows.push({ id: s.id, name: s.name, prob, risk });
+                } else if (p && (p.id || p.studentId || typeof p.probability !== 'undefined' || typeof p.prob !== 'undefined' || typeof p.risk !== 'undefined')){
+                  const id = p.id || p.studentId || students[idx].id;
+                  // prefer an explicit risk label from server if present
+                  let risk = p.risk || p.Risk || null;
+                  // numeric probability from server (prob or probability) if present
+                  // prefer server-provided probability for 'High' (dropout) if available
+                  let probHigh = Number(p.probHigh || p.probability || p.prob || p.score);
+                  if (!isFinite(probHigh)) probHigh = NaN;
+                  // use probHigh as dropout probability; fall back to predicted-class prob
+                  let prob = probHigh;
+                  if (isNaN(prob)) prob = Number(p.prob || p.probability || p.score);
+                  if (!isFinite(prob)) prob = NaN;
+                  if (!isFinite(prob)) prob = NaN;
+                  // if server provided a risk label but no numeric prob, map label -> probability
+                  if ((risk || typeof risk === 'string') && isNaN(prob)){
+                    const rlabel = String(risk || '').trim();
+                    const map = { 'High': 0.9, 'Medium': 0.5, 'Low': 0.1 };
+                    prob = map[rlabel] || 0;
+                  }
+                  // if still NaN, fallback to 0
+                  if (isNaN(prob)) prob = 0;
+                  const resolvedRisk = risk || (prob >= highThresh ? 'High' : (prob >= medThresh ? 'Medium' : 'Low'));
+                  // set dropoutProb explicitly to probability of High (probHigh) when available
+                  const dropoutProb = isFinite(Number(p.probHigh)) ? Number(p.probHigh) : Number(prob);
+                  EduCareAdmin.update('students', id, { risk: resolvedRisk, dropoutProb: dropoutProb });
+                  const s = students.find(x=>x.id===id) || students[idx];
+                  rows.push({ id, name: s.name, prob, risk: resolvedRisk });
+                }
+            });
+          }
+        } else if (typeof preds === 'object'){
+          // object mapping id->prob
+          Object.keys(preds).forEach(id=>{
+            const prob = Number(preds[id]);
+            const s = students.find(x=>x.id===id);
+            const risk = prob >= 0.6 ? 'High' : (prob >= 0.35 ? 'Medium' : 'Low');
+            if (s) { EduCareAdmin.update('students', id, { risk, dropoutProb: prob }); rows.push({ id, name: s.name, prob, risk }); }
+          });
+        }
+        // render results
+        let html = `<div style="font-weight:600;margin-bottom:8px">Server predicted ${rows.length} students</div><table style="width:100%;border-collapse:collapse"><thead><tr><th>Name</th><th>Prob</th><th>Risk</th></tr></thead><tbody>`;
+  rows.forEach(r=> html += `<tr><td>${r.name||'-'}</td><td>${(typeof r.prob === 'number' ? (r.prob*100).toFixed(1) + '%' : '-')}</td><td>${r.risk||'-'}</td></tr>`);
+        html += `</tbody></table>`;
+        aimlResults.innerHTML = html;
+        aimlStatus.textContent = `Server prediction complete: ${rows.filter(r=>r.risk==='High').length} High risk`;
+        // show saved file or ids if returned by server
+        try{
+          if (body.savedFile) aimlStatus.innerHTML += `<div style="margin-top:8px;color:#16a34a">Predictions saved to <code>${body.savedFile}</code></div>`;
+          if (body.savedIds) aimlStatus.innerHTML += `<div style="margin-top:8px;color:#16a34a">Saved IDs: ${JSON.stringify(body.savedIds)}</div>`;
+        }catch(e){ console.warn('show saved info failed', e); }
+  lastPredictions = rows;
+  // ensure updates are flushed to the canonical store and listeners notified
+  try{ const s = EduCareAdmin.getStore(); if(s) EduCareAdmin.setStore(s); }catch(e){ console.warn('post-server-predict persistence failed', e); }
+  render();
+      }catch(err){
+        const msg = (err && err.message) ? err.message : String(err);
+        showServerFailure('Server prediction failed: ' + msg, ()=>serverPredictBtn.click());
+      }
+    });
+
+    // Train on server (best-effort) — endpoint may not exist
+    trainServerBtn.addEventListener('click', async ()=>{
+      // Determine configured base early so it's available in all blocks
+      const base = getApiBase();
+      // First do a lightweight health check so we can give a clear message when the
+      // configured server isn't running (this commonly causes "Failed to fetch").
+      aimlStatus.textContent = `Checking server at ${base}...`;
+      try{
+        const h = await fetch((base.endsWith('/')? base.slice(0,-1) : base) + '/health', { method: 'GET' });
+        if(!h.ok) throw new Error('Health check returned '+h.status);
+      }catch(e){
+        // Show compact friendly failure card with Retry / Use Local
+        showServerFailure(`Server not reachable at <code>${base}</code>. Ensure the Python API is running.`, ()=>trainServerBtn.click());
+        return;
+      }
+
+      aimlStatus.textContent = 'Requesting server training...';
+      try{
+        const examples = loadTrainingExamples() || [];
+        // include labeled students as well
+        const students = EduCareAdmin.list('students') || [];
+        const labeled = students.map(s=>{
+          let label = null;
+          if (typeof s.dropped !== 'undefined') label = s.dropped ? 1 : 0;
+          if (label===null && typeof s.droppedOut !== 'undefined') label = s.droppedOut ? 1 : 0;
+          if (label===null && typeof s.actual_dropout !== 'undefined') label = s.actual_dropout ? 1 : 0;
+          if (label===null) return null;
+          return { id: s.id, attendance: Number(s.attendance||0), cgpa: Number(s.cgpa||0), stress: Number(s.stress||0), label };
+        }).filter(Boolean);
+        const payload = { examples: examples.concat(labeled) };
+        const resp = await fetch((base.endsWith('/')? base.slice(0,-1) : base) + '/train', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+        if(!resp.ok) throw new Error('Server returned '+resp.status);
+        const body = await resp.json();
+        aimlStatus.textContent = 'Server training: '+(body.message||JSON.stringify(body));
+        // fetch model info and display basic metadata so admins know which labels the server model supports
+        try{
+          const infoResp = await fetch((base.endsWith('/')? base.slice(0,-1) : base) + '/model_info', { method: 'GET' });
+          if(infoResp.ok){
+            const info = await infoResp.json();
+            let metaHtml = '';
+            if(info.meta){
+              const inv = info.meta.inv_label_map || info.meta.label_map || {};
+              metaHtml += `<div style="font-size:13px;color:#374151;margin-bottom:8px"><strong>Labels:</strong> ${Object.values(inv).join(', ')}</div>`;
+            }
+            if(info.classes){
+              metaHtml += `<div style="font-size:13px;color:#374151;margin-bottom:8px"><strong>Model classes:</strong> ${JSON.stringify(info.classes)}</div>`;
+            }
+            aimlResults.innerHTML = metaHtml + (aimlResults.innerHTML||'');
+          }
+        }catch(e){ console.warn('model_info fetch failed', e); }
+      }catch(err){
+        const msg = (err && err.message) ? err.message : String(err);
+        // If it's a network-level error (often manifests as 'Failed to fetch') show actionable guidance
+        if(msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('networkrequest') || msg.toLowerCase().includes('networkerror')){
+          showServerFailure(`Server training failed: network error when contacting <code>${base}</code>.`, ()=>trainServerBtn.click());
+        } else {
+          aimlStatus.textContent = 'Server training failed: '+msg;
+        }
+      }
+    });
+
+    // Export last predictions as CSV
+    exportPredictionsBtn.addEventListener('click', ()=>{
+      if(!lastPredictions || !lastPredictions.length){ alert('No predictions available to export'); return; }
+      const rows = lastPredictions;
+      const csv = ['id,name,probability,risk'].concat(rows.map(r=>`${r.id},"${(r.name||'').replace(/"/g,'""')}",${(r.prob||0).toFixed(6)},${r.risk}`)).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `predictions_${new Date().toISOString().split('T')[0]}.csv`; a.click(); URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+</html>

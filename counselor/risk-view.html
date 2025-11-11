@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Counselor • AI Risk View</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <script type="module" src="../admin/educare-data-firebase.js"></script>
+
+  <style>
+    :root{--gradA:#0ea5e9;--gradB:#7c3aed;--bg:#f5f7fb;--card:#fff;--muted:#6b7280}
+    *{box-sizing:border-box}
+    body{margin:0;display:flex;min-height:100vh;background:var(--bg);font-family:'Poppins',sans-serif}
+    .sidebar{width:240px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:22px 12px;display:flex;flex-direction:column}
+    .brand{font-weight:600;font-size:20px;text-align:center;margin-bottom:16px}
+    .nav a{display:block;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;margin:6px 6px;transition:.2s}
+    .nav a:hover,.nav a.active{background:rgba(255,255,255,.2)}
+    .main{flex:1;padding:24px;overflow:auto}
+    table{width:100%;border-collapse:collapse;margin-top:20px;background:var(--card);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+    th,td{padding:12px;text-align:left;border-bottom:1px solid #f1f5f9}
+    th{background:#f3f4f6;font-weight:600}
+    tr:last-child td{border:none}
+    .risk.low{background:#dcfce7;color:#166534;padding:3px 8px;border-radius:10px;font-size:12px}
+    .risk.medium{background:#fef9c3;color:#92400e;padding:3px 8px;border-radius:10px;font-size:12px}
+    .risk.high{background:#fee2e2;color:#991b1b;padding:3px 8px;border-radius:10px;font-size:12px}
+    button{padding:8px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff;cursor:pointer;font-size:13px}
+  </style>
+  <link rel="stylesheet" href="counselor-sidebar.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="students.html">Students</a>
+      <a class="active" href="risk-view.html">AI Risk View</a>
+      <a href="counseling.html">Counseling & Feedback</a>
+      <a href="hobbies.html">Hobbies</a>
+      <a href="chat.html">Communication</a>
+      <a href="reports.html">Reports & Analytics</a>
+      <a href="profile.html">Profile</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <h1>AI Risk Prediction View</h1>
+    <p style="color:#6b7280">Analyze predicted dropout risks for your assigned students. You can also re-run the AI evaluation if new data (attendance, CGPA, or stress) was updated.</p>
+
+    <div style="text-align:right;margin-bottom:10px;">
+      <button id="recalcBtn">Recalculate AI Predictions</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Attendance %</th>
+          <th>CGPA</th>
+          <th>Stress (1-10)</th>
+          <th>Predicted Risk</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </main>
+
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <script src="../admin/admin.js"></script>
+  <script src="counselor.js"></script>
+  <script>
+    const tbody = document.getElementById('tbody');
+    const recalcBtn = document.getElementById('recalcBtn');
+
+    function riskClass(r){
+      if(r==='High') return 'risk high';
+      if(r==='Medium') return 'risk medium';
+      return 'risk low';
+    }
+
+    function render(){
+      const students = EduCareCounselor.getAssignedStudents();
+      tbody.innerHTML = students.map(s=>`
+        <tr>
+          <td>${s.name}</td>
+          <td>${s.attendance ?? '-'}</td>
+          <td>${s.cgpa ?? '-'}</td>
+          <td>${s.stress ?? '-'}</td>
+          <td><span class="${riskClass(s.risk)}">${s.risk}</span></td>
+        </tr>`).join('') || '<tr><td colspan=\"5\" style=\"color:#6b7280;padding:16px\">No assigned students found.</td></tr>';
+    }
+
+    recalcBtn.onclick = ()=>{
+      const students = EduCareCounselor.getAssignedStudents();
+      if(!students.length){ alert('No assigned students to recalculate.'); return; }
+      const ids = students.map(s=>s.id);
+      EduCareAdmin.runPredictionOnStudents(ids);
+      alert('✅ AI predictions updated successfully.');
+      render();
+    };
+
+    if(EduCareCounselor.ensureCounselorSelected()) render();
+    else window.addEventListener('counselor-ready', render, {once:true});
+    EduCareAdmin.onStoreUpdated(render);
+  </script>
+  
+</body>
+</html>

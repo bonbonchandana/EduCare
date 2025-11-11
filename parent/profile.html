@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Parent • Profile</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <!-- Load Firebase + data layer FIRST -->
+  <script type="module" src="../admin/educare-data-firebase.js"></script>
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <link rel="stylesheet" href="parent-theme.css">
+
+<script type="module">
+  import { EduCareData } from "../admin/educare-data-firebase.js";
+
+  async function loadStudents() {
+    const students = await EduCareData.list("students");
+    const grid = document.getElementById("studentGrid");
+    if (!grid) return;
+    const hideNames = ['Ravi Kumar','Anjali Sharma','Vikram Singh','Unnamed','Aarush Nair','Mihika Sharma','Dev Patel','Ananya Reddy','Kabir Verma','SU1'];
+    const hidePins = ['20A91A001','20A91A002','20A91A003','797025','23CS001','23EC002','23IT003','23ME004','23CV005','126'];
+    const visible = (students || []).filter(s => {
+      const name = (s.name || '').trim();
+      const pin = String(s.pin || '').trim();
+      if(name && hideNames.includes(name)) return false;
+      if(pin && hidePins.includes(pin)) return false;
+      return true;
+    });
+    grid.innerHTML = visible.map(s => `
+      <div class="card"> 
+        <div class="name">${s.name}</div>
+        <div class="meta">PIN: ${s.pin || '-'} | CGPA: ${s.cgpa ?? '-'}</div>
+        <button onclick="showStudent('${s.id}')">View</button>
+      </div>
+    `).join('');
+  }
+
+  async function showStudent(id) {
+    const st = await EduCareData.getById("students", id);
+    // TODO: render st into the DOM
+  }
+
+  async function createSession({ studentId, counselorId, date, notes, outcome }) {
+    await EduCareData.addSession({ studentId, counselorId, date, notes, outcome });
+  }
+
+  async function updateCounselor(id, payload) {
+    await EduCareData.update("counselors", id, payload);
+  }
+
+  // Kick off initial load:
+  loadStudents();
+</script>
+
+  <div id="studentGrid" style="display:none"></div>
+
+  
+</head>
+<body class="parent-portal page-profile">
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <div class="radio-container" style="--total-radio:6">
+        <input type="radio" id="nav-dashboard" name="parent-nav" />
+        <label for="nav-dashboard" onclick="location.href='dashboard.html'">Dashboard</label>
+
+        <input type="radio" id="nav-academic" name="parent-nav" />
+        <label for="nav-academic" onclick="location.href='academic.html'">Academic</label>
+
+        <input type="radio" id="nav-attendance" name="parent-nav" />
+        <label for="nav-attendance" onclick="location.href='attendance.html'">Attendance</label>
+
+        <input type="radio" id="nav-counseling" name="parent-nav" />
+        <label for="nav-counseling" onclick="location.href='counseling.html'">Counseling Feedback</label>
+
+        <input type="radio" id="nav-chat" name="parent-nav" />
+        <label for="nav-chat" onclick="location.href='chat.html'">Communication</label>
+
+        <input type="radio" id="nav-profile" name="parent-nav" checked />
+        <label for="nav-profile" onclick="location.href='profile.html'">Profile</label>
+
+        <div class="glider-container"><div class="glider"></div></div>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div>
+        <h1>Parent Profile</h1>
+      </div>
+      <div class="header-controls">
+        <button class="notif-button" id="notifBtn" aria-expanded="false" aria-controls="notifPanel" title="Notifications">
+          <span class="notif-icon">🔔</span>
+          <span class="notif-text" style="display:none">Notifications</span>
+        </button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="form-segments">
+        <div class="segment">
+          <label for="name">Name</label>
+          <input id="name" type="text" />
+        </div>
+        <div class="segment">
+          <label for="email">Email</label>
+          <input id="email" type="email" placeholder="example@mail.com" />
+        </div>
+        <div class="segment">
+          <label for="phone">Phone</label>
+          <input id="phone" type="text" placeholder="Optional" />
+        </div>
+      </div>
+      <div class="actions">
+        <button id="saveBtn" class="accent-btn">Save Changes</button>
+        <button id="logoutBtn" class="accent-btn danger">Logout</button>
+      </div>
+    </div>
+
+    <div class="info" id="linkedInfo"></div>
+  </main>
+
+  <script src="../admin/admin.js"></script>
+  <script src="parent.js"></script>
+  <script src="parent-theme.js"></script>
+  <script>
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+    const phoneInput = document.getElementById('phone');
+    const saveBtn = document.getElementById('saveBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const linkedInfo = document.getElementById('linkedInfo');
+
+    function loadProfile(){
+      const p = EduCareParent.getCurrentParent();
+      if(!p){ EduCareParent.ensureParentSelected(); return; }
+      nameInput.value = p.name || '';
+      emailInput.value = p.email || '';
+      phoneInput.value = p.phone || '';
+
+      const student = EduCareParent.getLinkedStudent();
+      const counselor = EduCareParent.getLinkedCounselor();
+      linkedInfo.innerHTML = `
+        <div class="linked-card">
+          <h3>Linked Information</h3>
+          <div class="linked-row">
+            <div class="label">Student</div>
+            <div class="value">${student ? `${student.name} <span class="muted">(${student.pin||'-'})</span>` : '<span class="muted">Not Linked</span>'}</div>
+          </div>
+          <div class="linked-row">
+            <div class="label">Counselor</div>
+            <div class="value">${counselor ? `${counselor.name} <span class="muted">(${counselor.email || '-'})</span>` : '<span class="muted">Not Assigned</span>'}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    saveBtn.onclick = ()=>{
+      const p = EduCareParent.getCurrentParent();
+      if(!p) return;
+      EduCareAdmin.update('parents', p.id, {
+        name: nameInput.value.trim(),
+        email: emailInput.value.trim(),
+        phone: phoneInput.value.trim()
+      });
+      alert('✅ Profile updated successfully!');
+      loadProfile();
+    };
+
+    logoutBtn.onclick = ()=>{
+      if(confirm('Log out from parent account?')){
+        localStorage.removeItem('educare_current_parent_id');
+        alert('Logged out successfully.');
+        window.location.href = '../index.html';
+      }
+    };
+
+    if(EduCareParent.ensureParentSelected()) loadProfile();
+    else window.addEventListener('parent-ready', loadProfile, {once:true});
+  </script>
+  </body>
+</html>

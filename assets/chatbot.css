@@ -1,0 +1,60 @@
+/* Simple floating chatbot styles */
+.edu-chatbot {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  width: 420px;
+  max-width: calc(100vw - 40px);
+  max-height: 78vh;
+  box-shadow: 0 8px 30px rgba(0,0,0,.2);
+  border-radius: 12px;
+  overflow: hidden;
+  font-family: 'Poppins', sans-serif;
+  z-index: 9999;
+}
+.edu-chatbot .header { background: linear-gradient(90deg,#7b2ff7,#f107a3); color: #fff; padding: 10px 12px; display:flex; justify-content:space-between; align-items:center }
+.edu-chatbot .header .title { font-weight:700; font-size:16px }
+.edu-chatbot .header .subtitle { font-size:12px; opacity:0.9; margin-left:8px }
+.edu-chatbot .messages { background: #fff; padding: 16px; max-height: calc(78vh - 220px); overflow:auto }
+.edu-chatbot .msg { margin-bottom:12px; display:flex }
+.edu-chatbot .msg.user { justify-content:flex-end }
+.edu-chatbot .msg .bubble { max-width:75%; padding:8px 12px; border-radius:12px; font-size:14px }
+.edu-chatbot .msg.user .bubble { background:#7b2ff7; color:#fff; border-bottom-right-radius:4px; font-size:15px }
+.edu-chatbot .msg.bot .bubble { background:#f3f4f6; color:#111; font-size:15px }
+.edu-chatbot .composer { display:flex; gap:8px; padding:12px; background:#fafafa; border-top:1px solid #eee }
+.edu-chatbot .composer textarea { flex:1; min-height:56px; max-height:160px; resize:vertical; padding:10px; border-radius:10px; border:1px solid #e5e7eb; font-size:15px }
+.edu-chatbot .composer button { padding:10px 14px; border-radius:10px; border:none; background:#7b2ff7; color:#fff; font-weight:600 }
+.edu-chatbot .toggleBtn { position:fixed; right:22px; bottom:100px; width:64px; height:64px; border-radius:50%; background:linear-gradient(90deg,#7b2ff7,#f107a3); color:#fff; display:flex;align-items:center; justify-content:center; box-shadow:0 12px 36px rgba(0,0,0,.22); cursor:pointer; z-index:20010; font-size:20px; transition:transform .18s ease, box-shadow .18s ease; animation: edu-pulse 2.4s infinite ease-in-out; }
+.edu-chatbot .toggleBtn:hover { transform:translateY(-4px) scale(1.06); box-shadow:0 22px 56px rgba(123,47,247,.28); }
+
+@keyframes edu-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(123,47,247,0.28); transform: scale(1); }
+  50% { box-shadow: 0 0 30px 6px rgba(241,7,163,0.12); transform: scale(1.06); }
+  100% { box-shadow: 0 0 0 0 rgba(123,47,247,0.0); transform: scale(1); }
+}
+.edu-chatbot.collapsed { display:none }
+@media (max-width:480px){ .edu-chatbot { width:92vw; right:4%; bottom:120px } .toggleBtn { right:4%; bottom:120px } }
+
+/* AI button injected into the quick chat panel header */
+.edu-chat-panel .chat-header{position:relative}
+.edu-ai-btn{position:absolute;right:56px;top:50%;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;border:none;background:linear-gradient(135deg,#7b2ff7,#0ea5e9);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 12px 40px rgba(59,130,246,0.18);z-index:20020;transition:transform .18s ease,box-shadow .18s ease}
+.edu-ai-btn:hover{transform:translateY(-52%) scale(1.06);box-shadow:0 24px 70px rgba(59,130,246,0.26)}
+@keyframes aiFloat { 0%{transform:translateY(-50%) translateY(0)}50%{transform:translateY(-50%) translateY(-6px)}100%{transform:translateY(-50%) translateY(0)} }
+.edu-ai-btn{animation: aiFloat 3s ease-in-out infinite}
+@media (max-width:680px){ .edu-ai-btn{right:88px} }
+
+/* when the AI panel is open, give the AI button a subtle glow */
+.edu-ai-btn.active{box-shadow:0 30px 110px rgba(124,58,237,0.22),0 0 18px rgba(14,165,233,0.12)}
+
+/* Mini toolbar (stacked AI + Quick Chat) */
+.edu-mini-toolbar{position:fixed;right:22px;bottom:22px;display:flex;flex-direction:column;gap:10px;z-index:20030}
+.edu-mini-toolbar .edu-ai-mini,.edu-mini-toolbar .edu-fab-mini{width:56px;height:56px;border-radius:999px;border:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;cursor:pointer;box-shadow:0 14px 46px rgba(2,6,23,0.12);transition:transform .18s ease,box-shadow .18s ease}
+.edu-mini-toolbar .edu-ai-mini{background:linear-gradient(135deg,#7b2ff7,#0ea5e9)}
+.edu-mini-toolbar .edu-fab-mini{background:linear-gradient(135deg,#0ea5e9,#7b2ff7)}
+.edu-mini-toolbar .edu-ai-mini:hover,.edu-mini-toolbar .edu-fab-mini:hover{transform:translateY(-6px);box-shadow:0 28px 80px rgba(59,130,246,0.18)}
+.edu-mini-toolbar .edu-ai-mini.active{box-shadow:0 34px 120px rgba(124,58,237,0.26),0 0 20px rgba(14,165,233,0.12)}
+
+/* ensure chat root can be positioned when dragged */
+.edu-chatbot{position:fixed;right:18px;bottom:18px}
+
+@media (max-width:480px){ .edu-mini-toolbar{right:12px;bottom:110px} }

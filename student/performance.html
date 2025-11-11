@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Student • Performance</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../parent/parent-theme.css" />
+  <!-- Use the local EduCareAdmin store (no Firebase) -->
+
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{--gradA:#14b8a6;--gradB:#3b82f6;--bg:#f5f7fb;--card:#fff;--muted:#6b7280}
+    *{box-sizing:border-box}
+    body{margin:0;display:flex;min-height:100vh;background:var(--bg);font-family:'Poppins',sans-serif}
+    .sidebar{width:240px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:22px 12px;display:flex;flex-direction:column}
+    .brand{font-weight:600;font-size:20px;text-align:center;margin-bottom:16px}
+    .nav a{display:block;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;margin:6px 6px;transition:.2s}
+    .nav a:hover,.nav a.active{background:rgba(255,255,255,.2)}
+    .main{flex:1;padding:24px;overflow:auto}
+    table{width:100%;border-collapse:collapse;margin-top:18px;background:var(--card);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+    th,td{padding:12px;text-align:left;border-bottom:1px solid #f1f5f9}
+    th{background:#f3f4f6;font-weight:600}
+    tr:last-child td{border:none}
+    canvas{margin-top:24px;background:#fff;border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:14px}
+    .insights{background:#fff;border-radius:16px;padding:16px;margin-top:24px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+  </style>
+</head>
+<body class="parent-portal page-academic">
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a class="active" href="performance.html">Performance</a>
+      <a href="attendance.html">Attendance</a>
+      <a href="counseling.html">Counseling Reports</a>
+      <a href="hobbies.html">Hobbies</a>
+      <a href="chat.html">Communication</a>
+      <a href="profile.html">Profile</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <h1>Academic Performance</h1>
+    <p style="color:#6b7280">Your subject scores and academic progress overview.</p>
+
+    <table id="perfTable">
+      <thead>
+        <tr><th>Subject</th><th>Internal Marks</th><th>External Marks</th><th>Total (%)</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <canvas id="perfChart"></canvas>
+
+    <div class="insights" id="aiInsights"></div>
+  </main>
+
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <script src="../admin/admin.js"></script>
+  <script src="student.js"></script>
+  <script src="student-theme.js"></script>
+  <script>
+    // Render performance entries from the canonical store. If none exist, fall back to sample data.
+    const samplePerf = [
+      {subject:'Mathematics III', internal:28, external:55, date: new Date().toISOString()},
+      {subject:'Data Structures', internal:30, external:60, date: new Date().toISOString()},
+    ];
+
+    function toNumber(v){
+      return typeof v === 'number' ? v : parseFloat(v) || 0;
+    }
+
+    function render(){
+      const s = EduCareStudent.getCurrentStudent();
+      if(!s) return;
+
+      const perfList = Array.isArray(s.performance) && s.performance.length ? s.performance : samplePerf;
+
+      const tbody = document.querySelector('#perfTable tbody');
+      tbody.innerHTML = perfList.map(p=>{
+        const internal = toNumber(p.internal);
+        const external = toNumber(p.external);
+        const total = Math.round(internal + external);
+        const date = p.date ? new Date(p.date).toLocaleString() : '-';
+        return `<tr>
+          <td>${p.subject || '-'}</td>
+          <td>${internal}</td>
+          <td>${external}</td>
+          <td>${total}%</td>
+        </tr>`;
+      }).join('');
+
+      // chart (destroy previous if present)
+      const ctx = document.getElementById('perfChart');
+      try{ if(window._perfChart) window._perfChart.destroy(); }catch(e){}
+      window._perfChart = new Chart(ctx,{
+        type:'bar',
+        data:{
+          labels: perfList.map(p => p.subject || '-'),
+          datasets:[{label:'Total (%)', data: perfList.map(p => Math.round(toNumber(p.internal) + toNumber(p.external))), backgroundColor:'#3b82f6'}]
+        },
+        options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:100}}}
+      });
+
+      // AI insight section
+      const risk = s.risk || EduCareAdmin.computeRisk({ attendance: s.attendance||0, cgpa: s.cgpa||0, stress: s.stress||0 });
+      let message = '';
+      if(risk==='High')
+        message = `⚠️ Your performance and attendance indicate higher risk. Focus on consistency — attend counseling and maintain study routine.`;
+      else if(risk==='Medium')
+        message = `🟡 Moderate risk. Keep improving attendance and reduce stress. Balanced study patterns will help maintain your progress.`;
+      else
+        message = `✅ Great job! Your risk level is low. Keep consistent learning habits and stay engaged with mentors.`;
+
+      document.getElementById('aiInsights').innerHTML = `
+        <h3>AI Insights & Suggestions</h3>
+        <p>${message}</p>
+        <p style="color:#6b7280">CGPA: ${ (s.cgpa || 0).toFixed ? (s.cgpa||0).toFixed(1) : (s.cgpa||0) }  |  Attendance: ${s.attendance ?? '-'}%  |  Stress: ${s.stress ?? '-'}/10</p>
+      `;
+    }
+
+    function tryRender(){
+      if (window.EduCareStudent && EduCareStudent.ensureStudentSelected()) render();
+      else window.addEventListener('student-ready', render, { once: true });
+    }
+
+    // Re-render whenever the store updates so counselor changes appear immediately
+    try { EduCareAdmin.onStoreUpdated(() => { tryRender(); }); } catch(e){ /* ignore if not ready */ }
+
+    tryRender();
+  </script>
+</body>
+</html>

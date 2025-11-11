@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Student • Profile</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../parent/parent-theme.css" />
+  <!-- Use local EduCareAdmin store (no Firebase) -->
+
+  <style>
+    :root{--gradA:#14b8a6;--gradB:#3b82f6;--bg:#f5f7fb;--card:#fff;--muted:#6b7280}
+    *{box-sizing:border-box}
+    body{margin:0;display:flex;min-height:100vh;background:var(--bg);font-family:'Poppins',sans-serif}
+    .sidebar{width:240px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:22px 12px;display:flex;flex-direction:column}
+    .brand{font-weight:600;font-size:20px;text-align:center;margin-bottom:16px}
+    .nav a{display:block;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;margin:6px 6px;transition:.2s}
+    .nav a:hover,.nav a.active{background:rgba(255,255,255,.2)}
+    .main{flex:1;padding:24px;overflow:auto}
+    .card{background:var(--card);border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:20px;max-width:520px}
+    label{display:block;margin-top:10px;font-size:13px;color:#6b7280}
+    input{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:10px;margin-top:4px}
+    button{padding:10px 16px;border:none;border-radius:10px;background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff;cursor:pointer;margin-top:14px}
+    .danger{background:#ef4444}
+    .info{background:#fff;border-radius:16px;padding:16px;margin-top:20px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+  </style>
+</head>
+<body class="parent-portal page-profile">
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="performance.html">Performance</a>
+      <a href="attendance.html">Attendance</a>
+      <a href="counseling.html">Counseling Reports</a>
+      <a href="hobbies.html">Hobbies</a>
+      <a href="chat.html">Communication</a>
+      <a class="active" href="profile.html">Profile</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <h1>Student Profile</h1>
+    <div class="card">
+      <label>Name</label>
+      <input id="name" type="text" />
+      <label>Email</label>
+      <input id="email" type="email" placeholder="example@mail.com" />
+      <label>Phone</label>
+      <input id="phone" type="text" placeholder="Optional" />
+      <button id="saveBtn">Save Changes</button>
+      <button id="logoutBtn" class="danger">Logout</button>
+    </div>
+
+    <div class="info" id="linkedInfo"></div>
+    <div class="info" id="performance_summary"></div>
+  </main>
+
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <script src="../admin/admin.js"></script>
+  <script src="student.js"></script>
+  <script src="student-theme.js"></script>
+  <script>
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+    const phoneInput = document.getElementById('phone');
+    const linkedInfo = document.getElementById('linkedInfo');
+    const saveBtn = document.getElementById('saveBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    function loadProfile(){
+      const s = EduCareStudent.getCurrentStudent();
+      if(!s){ EduCareStudent.ensureStudentSelected(); return; }
+      nameInput.value = s.name || '';
+      emailInput.value = s.email || '';
+      phoneInput.value = s.phone || '';
+      const counselor = EduCareStudent.getLinkedCounselor();
+      const parent = EduCareStudent.getLinkedParent();
+      linkedInfo.innerHTML = `
+        <h3>Linked Information</h3>
+        <p><strong>Counselor:</strong> ${counselor ? counselor.name : 'Not Assigned'} (${counselor?.email || '-'})</p>
+        <p><strong>Parent:</strong> ${parent ? parent.name : 'Not Linked'} (${parent?.email || '-'})</p>
+      `;
+    }
+
+    saveBtn.onclick = ()=>{
+      const s = EduCareStudent.getCurrentStudent();
+      if(!s) return;
+      EduCareAdmin.update('students', s.id, {
+        name: nameInput.value.trim(),
+        email: emailInput.value.trim(),
+        phone: phoneInput.value.trim()
+      });
+      alert('✅ Profile updated successfully!');
+    };
+
+    logoutBtn.onclick = ()=>{
+      if(confirm('Do you want to log out?')){
+        localStorage.removeItem('educare_current_student_id');
+        alert('You have been logged out.');
+        window.location.href = '../index.html';
+      }
+    };
+
+    function renderPerformanceSummary(){
+      const s = EduCareStudent.getCurrentStudent();
+      const container = document.getElementById('performance_summary');
+      if(!s || !container) return;
+      const list = Array.isArray(s.performance) ? s.performance.slice().reverse() : [];
+      container.innerHTML = '<h3>Recent Performance</h3>' + (list.length ? list.slice(0,5).map(p=>`<div style="padding:8px 0;border-bottom:1px solid #f1f5f9"><strong>${p.subject}</strong> — ${p.internal}/${p.external} (Total ${p.total}%)<div style="color:#6b7280;font-size:12px">${new Date(p.date).toLocaleString()}</div></div>`).join('') : '<p style="color:#6b7280">No performance records yet.</p>');
+    }
+
+    if(EduCareStudent.ensureStudentSelected()) { loadProfile(); renderPerformanceSummary(); }
+    else window.addEventListener('student-ready', ()=>{ loadProfile(); renderPerformanceSummary(); }, {once:true});
+
+    // Re-render when store updates (so counselor changes show up immediately)
+    try{ EduCareAdmin.onStoreUpdated(()=>{ loadProfile(); renderPerformanceSummary(); }); }catch(e){}
+  </script>
+</body>
+</html>

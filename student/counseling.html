@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Student • Counseling Reports</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../parent/parent-theme.css" />
+  <!-- Student grid removed from student pages (was a global student list beside the sidebar) -->
+
+  <style>
+    :root{--gradA:#14b8a6;--gradB:#3b82f6;--bg:#f5f7fb;--card:#fff;--muted:#6b7280}
+    *{box-sizing:border-box}
+    body{margin:0;display:flex;min-height:100vh;background:var(--bg);font-family:'Poppins',sans-serif}
+    .sidebar{width:240px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:22px 12px;display:flex;flex-direction:column}
+    .brand{font-weight:600;font-size:20px;text-align:center;margin-bottom:16px}
+    .nav a{display:block;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;margin:6px 6px;transition:.2s}
+    .nav a:hover,.nav a.active{background:rgba(255,255,255,.2)}
+    .main{flex:1;padding:24px;overflow:auto}
+    table{width:100%;border-collapse:collapse;margin-top:18px;background:var(--card);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+    th,td{padding:12px;text-align:left;border-bottom:1px solid #f1f5f9}
+    th{background:#f3f4f6;font-weight:600}
+    tr:last-child td{border:none}
+    .summary{background:#fff;border-radius:16px;padding:16px;margin-top:24px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+    .good{color:#16a34a}.warn{color:#f59e0b}.bad{color:#dc2626}
+  .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;background:#eef2ff;color:#0b61ff}
+  .badge.completed{background:#ecfdf5;color:#047857}
+    /* Meeting link bar */
+    .meeting-link{display:flex;align-items:center;gap:12px;padding:8px;border-radius:10px;background:#f8fafc;border:1px solid #e6f0f6;max-width:380px}
+    .meeting-btn{background:#059669;color:#fff;padding:8px 12px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block}
+    .meeting-caption{font-size:12px;color:#065f46}
+  /* Modal dialog for feedback */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:120;padding:16px}
+  .modal.open{display:flex}
+  .box{background:#fff;border-radius:12px;padding:18px;max-width:560px;width:100%;box-shadow:0 12px 40px rgba(2,6,23,.3);color:#111}
+  .box textarea,input,select{width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:8px;margin-top:8px}
+  .row-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+  .secondary{background:#f3f4f6;border:1px solid #e5e7eb;padding:8px 12px;border-radius:8px;cursor:pointer}
+  /* Pixel-style radio buttons (uiverse theme) */
+  .uiverse-pixel-radio-group{display:flex;flex-direction:column;gap:.75em;border-radius:.5em;font-family:"Courier New",monospace;margin-top:8px}
+  .uiverse-pixel-radio{display:flex;align-items:center;gap:.75em;cursor:pointer;font-size:1em;font-weight:bold;color:#111;position:relative}
+  .uiverse-pixel-radio input[type="radio"]{appearance:none;width:1.5em;height:1.5em;background:#ff6b35;border:none;box-shadow:0 0 0 .15em #000,0 0 0 .3em #fff,0 0 0 .45em #000;image-rendering:pixelated;margin:0;transition:all .1s steps(1);position:relative}
+  .uiverse-pixel-radio input[type="radio"]::before{content:"";display:block;width:.75em;height:.75em;background:#fff;margin:auto;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);transition:transform .1s ease-out;box-shadow:0 0 0 1px #000}
+  .uiverse-pixel-radio input[type="radio"]:checked::before{transform:translate(-50%,-50%) scale(1);background:#000}
+  .uiverse-pixel-radio input[type="radio"]:hover{background:#ff8c42}
+  .uiverse-pixel-radio input[type="radio"]:active{background:#e55a2b;transform:translateY(.125em)}
+  .uiverse-pixel-radio input[type="radio"]:focus-visible{outline:2px dashed #111;outline-offset:.2em}
+  .uiverse-pixel-radio .label-text{color:#111}
+  </style>
+</head>
+<body class="parent-portal page-counseling">
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <div style="padding:8px 6px;color:#fff">
+      <button id="notifToggle" style="background:transparent;border:none;color:#fff;cursor:pointer">🔔 <span id="notifCount" style="background:#ef4444;padding:2px 6px;border-radius:999px;font-size:12px;margin-left:6px;display:inline-block">0</span></button>
+      <div id="notifPanel" style="display:none;background:#fff;color:#111;padding:8px;border-radius:8px;margin-top:8px;position:relative;z-index:60;max-height:260px;overflow:auto"></div>
+    </div>
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="performance.html">Performance</a>
+      <a href="attendance.html">Attendance</a>
+      <a class="active" href="counseling.html">Counseling Reports</a>
+      <a href="hobbies.html">Hobbies</a>
+      <a href="chat.html">Communication</a>
+      <a href="profile.html">Profile</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <h1>Counseling Reports</h1>
+    <p style="color:#6b7280">Here are all your past counseling sessions and feedback from your counselor.</p>
+
+    <table id="sessionTable">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Counselor</th>
+          <th>Notes</th>
+          <th>Objective</th>
+          <th>Outcome</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="summary" id="summaryBox"></div>
+  </main>
+
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <script src="../admin/admin.js"></script>
+  <script src="student.js"></script>
+  <script src="student-theme.js"></script>
+  <script>
+    // Safely open meeting link: only open if session still active and meetingLink exists
+    window.openMeetingLink = function(sessionId){
+      try{
+        const store = EduCareAdmin.getStore();
+        if(!store) return alert('Store unavailable');
+        const session = (store.sessions||[]).find(s=>s.id===sessionId);
+        if(!session) return alert('Session not found');
+        if(session.completed) return alert('Meeting has ended or link is no longer available.');
+        if(!session.meetingLink) return alert('Meeting link unavailable.');
+        // open in new tab
+        window.open(session.meetingLink, '_blank');
+      }catch(e){ console.error('openMeetingLink failed', e); alert('Unable to open meeting link'); }
+    };
+
+    async function sendAssignmentReply(sessionId, assignmentId){
+      const ta = document.getElementById(`reply_${assignmentId}`);
+      const fileInput = document.getElementById(`replyfile_${assignmentId}`);
+      if(!ta && !fileInput) return alert('Reply controls not found');
+      const text = ta && ta.value && ta.value.trim();
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      if(!text && !file) return alert('Please enter a reply text or attach a file before sending.');
+      const store = EduCareAdmin.getStore();
+      const sessions = store.sessions || [];
+      const si = sessions.findIndex(s=>s.id===sessionId);
+      if(si===-1) return alert('Session not found');
+      const session = sessions[si];
+      session.assignments = session.assignments || [];
+      const ai = session.assignments.findIndex(a=>a.id===assignmentId);
+      if(ai===-1) return alert('Assignment not found');
+      session.assignments[ai].replies = session.assignments[ai].replies || [];
+
+      const pushReply = (reply)=>{
+        session.assignments[ai].replies.push(reply);
+        session.updatedAt = new Date().toISOString();
+        EduCareAdmin.setStore(store);
+        if(ta) ta.value = '';
+        if(fileInput) fileInput.value = '';
+        render();
+        alert('Reply sent. Your counselor will see this in the session.');
+      };
+
+      // After saving reply, notify counselor (and parent) about the student reply
+      const notifyAfterReply = (reply) => {
+        try{
+          const store2 = EduCareAdmin.getStore();
+          const session2 = store2.sessions.find(x=>x.id===sessionId);
+          if(!session2) return;
+          const counselor = (store2.users && store2.users.counselors||[]).find(c=>c.id===session2.counselorId);
+          const student = (store2.users && store2.users.students||[]).find(st=>st.id===session2.studentId);
+          const parent = student && (store2.users && store2.users.parents||[]).find(p=>p.id===student.parentId);
+          const nid = 'notif_' + Math.random().toString(36).slice(2,9);
+          const now = new Date().toISOString();
+          const title = 'Student replied to assignment';
+          const message = `Student ${student? student.name : 'Student'} replied to assignment in session on ${new Date(session2.date).toLocaleString()}`;
+          const notif = { id:nid, type:'assignment_reply', title, message, sessionId: session2.id, at: now, from: session2.studentId, read:false };
+          if(counselor){ counselor.notifications = counselor.notifications || []; counselor.notifications.push(notif); }
+          if(parent){ parent.notifications = parent.notifications || []; parent.notifications.push(notif); }
+          EduCareAdmin.setStore(store2);
+        }catch(e){console.warn('notifyAfterReply failed', e);}    
+      };
+
+      if(file){
+        const reader = new FileReader();
+        reader.onload = function(e){
+          const dataUrl = e.target.result;
+          const r = { from: 'student', text: text||'', at: new Date().toISOString(), file: { name: file.name, dataUrl } };
+          pushReply(r);
+          notifyAfterReply(r);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const r = { from: 'student', text: text||'', at: new Date().toISOString() };
+        pushReply(r);
+        notifyAfterReply(r);
+      }
+    }
+    function render(){
+      const s = EduCareStudent.getCurrentStudent();
+      if(!s) return;
+      const sessions = EduCareStudent.getCounselingSessions();
+        const tbody = document.querySelector('#sessionTable tbody');
+        tbody.innerHTML = sessions.map(se=>{
+          const c = EduCareAdmin.getById('counselors', se.counselorId);
+          // build assignments HTML
+          const assignmentsHtml = (se.assignments||[]).map(a=>{
+            const aid = a.id;
+            const repliesHtml = (a.replies||[]).map(r=>`<div style="border-top:1px dashed #eef2ff;padding-top:6px;margin-top:6px"><strong>${r.from=== 'student' ? 'You' : r.from}</strong> — <span style="color:#6b7280;font-size:12px">${new Date(r.at).toLocaleString()}</span><div>${r.text}</div></div>`).join('');
+            return `
+              <div style="padding:6px 0;border-top:1px solid #f1f5f9">
+                <strong>${a.title || a.name}</strong>
+                <div style="font-size:12px;color:#6b7280">Uploaded: ${new Date(a.uploadedAt).toLocaleString()}</div>
+                <div style="margin-top:6px"><a href="${a.dataUrl}" download="${a.name}">Download</a></div>
+                <div style="margin-top:8px">
+                  <textarea id="reply_${aid}" rows="2" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:8px" placeholder="Reply to assignment..."></textarea>
+                  <input type="file" id="replyfile_${aid}" style="margin-top:6px" />
+                  <div style="text-align:right;margin-top:6px"><button onclick="sendAssignmentReply('${se.id}','${aid}')">Send Reply</button></div>
+                </div>
+                <div style="margin-top:8px;color:#374151">${repliesHtml}</div>
+              </div>`;
+          }).join('');
+
+          const joinLinkHtml = se.meetingLink ? `<div class="meeting-link" style="margin-top:8px"><button class="meeting-btn" onclick="openMeetingLink('${se.id}')">Join Meeting</button><div class="meeting-caption">Meeting link shared by your counselor</div></div>` : '';
+          // show counselor-uploaded note documents (if any)
+          const counselorNotesHtml = (se.noteDocuments||[]).map(d=>`<div style="margin-top:8px;padding:8px;border-radius:8px;background:#ffffff;border:1px solid #e6f4ff"><a href="${d.dataUrl}" download="${d.name}" style="color:#0b61ff;font-weight:600">Download counselor notes: ${d.name}</a><div style="font-size:12px;color:#6b7280;margin-top:6px">Uploaded: ${new Date(d.uploadedAt).toLocaleString()}</div></div>`).join('');
+          // session-level replies HTML
+          const sessionRepliesHtml = (se.replies||[]).map(r=>{
+            const fileLink = r.file && r.file.dataUrl ? `<div style="margin-top:6px"><a href="${r.file.dataUrl}" download="${r.file.name}">Download: ${r.file.name}</a></div>` : '';
+            return `<div style="padding:8px;border-top:1px dashed #eef2ff;margin-top:6px"><strong>${r.from=== 'student' ? 'You' : r.from}</strong> <span style="color:#6b7280;font-size:12px">${new Date(r.at).toLocaleString()}</span><div>${r.text? r.text : ''}</div>${fileLink}</div>`;
+          }).join('');
+
+          const replyFormHtml = `
+            <div id="sessionReplyForm_${se.id}" style="display:none;margin-top:8px;padding:8px;border:1px solid #eef2ff;border-radius:8px;background:#fff">
+              <textarea id="sessionReplyText_${se.id}" rows="2" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:8px" placeholder="Reply to this session..."></textarea>
+              <input type="file" id="sessionReplyFile_${se.id}" style="margin-top:6px" />
+              <div style="text-align:right;margin-top:6px"><button onclick="sendSessionReply('${se.id}')">Send Reply</button></div>
+            </div>`;
+
+          const replyToggle = `<div style="margin-top:8px"><button class="secondary" onclick="toggleSessionReplyForm('${se.id}')">Reply to session</button></div>`;
+
+          // Feedback button shown when session is completed
+          const fbBtn = (se.completed) ? `<div style="margin-top:8px"><button class="secondary" onclick="openFeedbackModal('${se.id}')">Give Feedback</button></div>` : '';
+
+          return `<tr>
+            <td>${EduCareStudent.fmtDate(se.date)}</td>
+            <td>${c ? c.name : 'Unknown'}</td>
+            <td>${(se.notes || '-')}${joinLinkHtml}${counselorNotesHtml ? '<div style="margin-top:8px>'+counselorNotesHtml+'</div>':''}${assignmentsHtml ? '<div style="margin-top:8px>'+assignmentsHtml+'</div>':''}${sessionRepliesHtml ? '<div style="margin-top:8px>'+sessionRepliesHtml+'</div>':''}${replyToggle}${replyFormHtml}${fbBtn}</td>
+              <td>${se.objective || '-'}</td>
+              <td>${se.outcome || '-'}${typeof se.marks !== 'undefined' ? `<div style="margin-top:6px;font-weight:600;color:#111">Marks: ${se.marks}</div>` : ''}${se.completed ? ' <span class="badge completed" style="margin-left:8px">Completed</span>':'' }</td>
+          </tr>`;
+        }).join('') || '<tr><td colspan="4" style="color:#6b7280;padding:16px">No counseling sessions found.</td></tr>';
+
+      // summarize counselor feedback trend and marks
+      const total = sessions.length;
+      const positive = sessions.filter(se => (se.outcome||'').toLowerCase().includes('improved')).length;
+      const neutral = sessions.filter(se => (se.outcome||'').toLowerCase().includes('plan')).length;
+      const risk = s.risk;
+      const marksList = sessions.map(se=> typeof se.marks !== 'undefined' ? se.marks : null).filter(x=>x!==null);
+      const avgMarks = marksList.length ? (marksList.reduce((a,b)=>a+b,0)/marksList.length).toFixed(1) : null;
+
+      let msg='';
+      if(total===0) msg='You have not attended any counseling sessions yet. Stay proactive — your counselor can help you improve academic outcomes.';
+      else if(risk==='High') msg=`⚠️ You have attended ${total} sessions. Your counselor suggests consistent follow-ups.`;
+      else if(risk==='Medium') msg=`🟡 You have attended ${total} sessions. Keep following the improvement plans.`;
+      else msg=`✅ You have attended ${total} sessions and show steady improvement. Keep communicating with your counselor.`;
+
+      document.getElementById('summaryBox').innerHTML = `
+        <h3>Counseling Summary</h3>
+        <p>${msg}</p>
+        <p style="color:#6b7280">Positive Outcomes: ${positive} | Action Plans: ${neutral}${avgMarks ? ` | Average Marks: ${avgMarks}` : ''}</p>
+      `;
+    }
+
+    if(EduCareStudent.ensureStudentSelected()) render();
+    else window.addEventListener('student-ready', render,{once:true});
+    // Re-render when store updates so replies/marks appear immediately
+    EduCareAdmin.onStoreUpdated(render);
+
+  // small helper
+  function escapeHtml(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    // --- Feedback modal for students ---
+    const feedbackModalHtml = `
+      <div class="modal" id="feedbackModal">
+        <div class="box">
+          <h2 id="feedbackModalTitle">Session Feedback</h2>
+          <div id="feedbackQuestions"></div>
+          <div style="margin-top:8px">
+            <label for="feedbackComments">Comments</label>
+            <textarea id="feedbackComments" rows="4" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:8px" placeholder="Tell your counselor what you felt about the session..."></textarea>
+          </div>
+          <div style="text-align:right;margin-top:12px"><button id="feedbackCancel" class="secondary">Cancel</button><button id="feedbackSubmit">Submit Feedback</button></div>
+        </div>
+      </div>`;
+    document.body.insertAdjacentHTML('beforeend', feedbackModalHtml);
+
+    const feedbackModal = document.getElementById('feedbackModal');
+    const feedbackQuestionsEl = document.getElementById('feedbackQuestions');
+    const feedbackComments = document.getElementById('feedbackComments');
+    const feedbackCancel = document.getElementById('feedbackCancel');
+    const feedbackSubmit = document.getElementById('feedbackSubmit');
+
+    const FEEDBACK_QUESTIONS = [
+      { id: 'q1', text: 'Was the session helpful?', options: ['Very helpful','Somewhat helpful','Not helpful'] },
+      { id: 'q2', text: 'Was the counselor clear and supportive?', options: ['Yes, very','Somewhat','Not really'] },
+      { id: 'q3', text: 'Would you recommend similar sessions?', options: ['Yes','Maybe','No'] }
+    ];
+
+    function buildFeedbackForm(existing){
+      feedbackQuestionsEl.innerHTML = '';
+      FEEDBACK_QUESTIONS.forEach(q=>{
+        const existingAns = existing && existing.answers && existing.answers[q.id];
+        const opts = q.options.map((opt, idx)=>{
+          const checked = existingAns === opt ? 'checked' : '';
+          return `<label class="uiverse-pixel-radio"><input type=\"radio\" name=\"${q.id}\" value=\"${escapeHtml(opt)}\" ${checked}/><span class=\"label-text\">${escapeHtml(opt)}</span></label>`;
+        }).join('');
+        feedbackQuestionsEl.insertAdjacentHTML('beforeend', `<div class=\"uiverse-pixel-radio-group\"><strong>${escapeHtml(q.text)}</strong>${opts}</div>`);
+      });
+    }
+
+    let _activeFeedbackSession = null;
+
+    window.openFeedbackModal = function(sessionId){
+      const store = EduCareAdmin.getStore();
+      if(!store) return alert('Store unavailable');
+      const session = (store.sessions||[]).find(s=>s.id===sessionId);
+      if(!session) return alert('Session not found');
+      const me = EduCareStudent.getCurrentStudent();
+      if(!me) return alert('No student selected');
+      // if feedback exists by this student, prefill
+      const existing = (session.feedbacks||[]).find(f=>f.studentId===me.id) || null;
+      _activeFeedbackSession = sessionId;
+      buildFeedbackForm(existing);
+      feedbackComments.value = existing ? (existing.comments||'') : '';
+      feedbackModal.classList.add('open');
+    };
+
+    feedbackCancel && (feedbackCancel.onclick = ()=>{ feedbackModal.classList.remove('open'); _activeFeedbackSession = null; });
+
+    feedbackSubmit && (feedbackSubmit.onclick = ()=>{
+      if(!_activeFeedbackSession) return;
+      const store = EduCareAdmin.getStore();
+      if(!store) return alert('Store unavailable');
+      const session = (store.sessions||[]).find(s=>s.id===_activeFeedbackSession);
+      if(!session) return alert('Session not found');
+      const me = EduCareStudent.getCurrentStudent();
+      if(!me) return alert('No student selected');
+      const answers = {};
+      FEEDBACK_QUESTIONS.forEach(q=>{
+        const el = document.querySelector(`input[name="${q.id}"]:checked`);
+        answers[q.id] = el ? el.value : null;
+      });
+      const comments = feedbackComments.value && feedbackComments.value.trim();
+      const fb = { id: 'fb_'+Math.random().toString(36).slice(2,9), studentId: me.id, answers, comments: comments||'', at: new Date().toISOString() };
+      session.feedbacks = session.feedbacks || [];
+      // replace existing feedback by same student
+      const idx = session.feedbacks.findIndex(f=>f.studentId===me.id);
+      if(idx!==-1) session.feedbacks[idx] = fb; else session.feedbacks.push(fb);
+      session.updatedAt = new Date().toISOString();
+      EduCareAdmin.setStore(store);
+      // notify counselor
+      try{
+        const counselor = (store.users && store.users.counselors||[]).find(c=>c.id===session.counselorId);
+        const nid = 'notif_'+Math.random().toString(36).slice(2,9);
+        const now = new Date().toISOString();
+        const title = 'New session feedback';
+        const message = `Student submitted feedback for session on ${new Date(session.date).toLocaleString()}`;
+        const notif = { id:nid, type:'session_feedback', title, message, sessionId: session.id, at: now, from: me.id, read:false };
+        if(counselor){ counselor.notifications = counselor.notifications || []; counselor.notifications.push(notif); EduCareAdmin.setStore(store); }
+      }catch(e){ /* ignore */ }
+      feedbackModal.classList.remove('open'); _activeFeedbackSession = null; render(); alert('Feedback submitted. Thank you!');
+    });
+
+    // --- Notifications UI (student) ---
+    const notifToggle = document.getElementById('notifToggle');
+    const notifPanel = document.getElementById('notifPanel');
+    const notifCount = document.getElementById('notifCount');
+
+    function renderNotifications(){
+      const me = EduCareStudent.getCurrentStudent();
+      if(!me) return;
+      const store = EduCareAdmin.getStore();
+      const my = (store.users && store.users.students||[]).find(s=>s.id===me.id) || {};
+      const notes = my.notifications || [];
+      const unread = notes.filter(n=>!n.read).length;
+      notifCount.textContent = unread || 0;
+      notifPanel.innerHTML = notes.length ? notes.map(n=>`<div style="padding:8px;border-bottom:1px solid #f1f5f9"><strong>${n.title}</strong><div style="font-size:12px;color:#6b7280">${new Date(n.at).toLocaleString()}</div><div style="margin-top:6px">${n.message}</div><div style="text-align:right;margin-top:6px"><button onclick="markNotifRead('${n.id}','student')">Mark read</button></div></div>`).join('') : '<div style="color:#6b7280">No notifications</div>';
+    }
+
+    window.markNotifRead = function(id, role){
+      const store = EduCareAdmin.getStore();
+      if(!store) return;
+      const me = EduCareStudent.getCurrentStudent();
+      if(role==='student' && me){
+        const s = (store.users && store.users.students||[]).find(x=>x.id===me.id);
+        if(s && s.notifications){ const ni = s.notifications.find(x=>x.id===id); if(ni) ni.read = true; }
+      }
+      EduCareAdmin.setStore(store);
+      render(); renderNotifications();
+    };
+
+    notifToggle && notifToggle.addEventListener('click', ()=>{ notifPanel.style.display = notifPanel.style.display === 'none' ? 'block' : 'none'; });
+    EduCareAdmin.onStoreUpdated(renderNotifications);
+    renderNotifications();
+  </script>
+
+  <script>
+    // Toggle reply form visibility
+    window.toggleSessionReplyForm = function(sessionId){
+      const el = document.getElementById('sessionReplyForm_'+sessionId);
+      if(!el) return;
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    };
+
+    // Send a session-level reply (file + optional text)
+    window.sendSessionReply = function(sessionId){
+      const ta = document.getElementById(`sessionReplyText_${sessionId}`);
+      const fileInput = document.getElementById(`sessionReplyFile_${sessionId}`);
+      if(!ta && !fileInput) return alert('Reply controls not found');
+      const text = ta && ta.value && ta.value.trim();
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      if(!text && !file) return alert('Please enter a reply text or attach a file before sending.');
+
+      const store = EduCareAdmin.getStore();
+      const sessions = store.sessions || [];
+      const si = sessions.findIndex(s=>s.id===sessionId);
+      if(si===-1) return alert('Session not found');
+      const session = sessions[si];
+      session.replies = session.replies || [];
+
+      const pushAndNotify = (reply)=>{
+        session.replies.push(reply);
+        session.updatedAt = new Date().toISOString();
+        EduCareAdmin.setStore(store);
+        if(ta) ta.value = '';
+        if(fileInput) fileInput.value = '';
+        render();
+        alert('Reply sent to counselor.');
+
+        // notify counselor and parent
+        try{
+          const store2 = EduCareAdmin.getStore();
+          const session2 = store2.sessions.find(x=>x.id===sessionId);
+          if(!session2) return;
+          const counselor = (store2.users && store2.users.counselors||[]).find(c=>c.id===session2.counselorId);
+          const student = (store2.users && store2.users.students||[]).find(st=>st.id===session2.studentId);
+          const parent = student && (store2.users && store2.users.parents||[]).find(p=>p.id===student.parentId);
+          const nid = 'notif_' + Math.random().toString(36).slice(2,9);
+          const now = new Date().toISOString();
+          const title = 'Student replied to session';
+          const message = `Student ${student? student.name : 'Student'} replied to session on ${new Date(session2.date).toLocaleString()}`;
+          const notif = { id:nid, type:'session_reply', title, message, sessionId: session2.id, at: now, from: session2.studentId, read:false };
+          if(counselor){ counselor.notifications = counselor.notifications || []; counselor.notifications.push(notif); }
+          if(parent){ parent.notifications = parent.notifications || []; parent.notifications.push(notif); }
+          EduCareAdmin.setStore(store2);
+        }catch(e){ console.warn('notify after session reply failed', e); }
+      };
+
+      if(file){
+        const reader = new FileReader();
+        reader.onload = function(e){
+          const dataUrl = e.target.result;
+          const r = { from: 'student', text: text||'', at: new Date().toISOString(), file: { name: file.name, dataUrl } };
+          pushAndNotify(r);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const r = { from: 'student', text: text||'', at: new Date().toISOString() };
+        pushAndNotify(r);
+      }
+    };
+  </script>
+</body>
+</html>

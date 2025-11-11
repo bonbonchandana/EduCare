@@ -1,0 +1,49 @@
+/* Cinematic sidebar for Counselor pages */
+:root{--cs-width:260px}
+.sidebar{width:var(--cs-width);background:linear-gradient(180deg,#07203b 0%,#0f1724 40%,#07113a 100%);color:#fff;padding:22px 14px;display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:60;box-shadow:0 20px 60px rgba(2,6,23,0.5);backdrop-filter:blur(6px)}
+.brand{font-weight:700;font-size:20px;text-align:center;margin-bottom:14px;letter-spacing:0.6px}
+.nav{display:flex;flex-direction:column;gap:6px}
+.nav a{display:flex;align-items:center;gap:12px;color:rgba(255,255,255,0.9);text-decoration:none;padding:10px 12px;border-radius:10px;margin:6px 0;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
+.nav a:hover{transform:translateX(6px);box-shadow:0 10px 30px rgba(59,130,246,0.12);background:linear-gradient(90deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))}
+.nav a.active{background:linear-gradient(90deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02));box-shadow:0 18px 50px rgba(124,58,237,0.14);transform:translateX(2px)}
+.nav a .icon{width:28px;height:28px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.03);box-shadow:inset 0 -2px 6px rgba(0,0,0,0.4)}
+/* make sure page content doesn't hide behind fixed sidebar */
+.main{margin-left:var(--cs-width);}
+/* subtle glowing underline for active nav */
+.nav a.active::after{content:'';height:3px;width:100%;border-radius:6px;background:linear-gradient(90deg,#0ea5e9,#7c3aed);display:block;margin-top:8px;box-shadow:0 6px 24px rgba(99,102,241,0.18)}
+/* responsive shrink */
+@media (max-width:900px){ .sidebar{position:relative;width:220px} .main{margin-left:220px} }
+@media (max-width:720px){ .sidebar{display:none} .main{margin-left:0} }
+/* notification button styles inside sidebar */
+#notifToggle,#stuNotifToggle{background:linear-gradient(90deg,#7b2ff7,#f107a3);padding:8px 10px;border-radius:10px;border:none;cursor:pointer}
+#notifCount,#stuNotifCount{background:#ef4444;padding:2px 6px;border-radius:999px;font-size:12px;margin-left:6px;color:#fff}
+/* make links accessible and not overlap */
+.nav a{position:relative;z-index:2}
+/* add tiny entrance animation */
+@keyframes slideInNav{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+.nav a{animation:slideInNav .36s ease both}
+
+/* Page background: light, vibrant, continuous animated movement */
+body{background:linear-gradient(120deg,#f8fbff 0%,#fffaf0 30%,#f0fbff 60%,#fff6fb 100%);background-size:600% 600%;animation:bgShift 18s ease infinite;transition:background 0.5s}
+@keyframes bgShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+/* Vibrant animated card styles used across counselor pages */
+.card{background:linear-gradient(180deg,rgba(255,255,255,0.9),rgba(255,255,255,0.85));border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(2,6,23,0.06);transition:transform .28s ease,box-shadow .28s ease;background-blend-mode:overlay}
+.card:hover{transform:translateY(-8px) scale(1.01);box-shadow:0 30px 90px rgba(59,130,246,0.10),0 8px 28px rgba(124,58,237,0.06)}
+.card.accent{background:linear-gradient(135deg,rgba(14,165,233,0.12),rgba(124,58,237,0.08));border:1px solid rgba(255,255,255,0.04);}
+
+/* Floating chat FAB and panel */
+.chat-fab{position:fixed;right:22px;bottom:22px;width:64px;height:64px;border-radius:999px;background:linear-gradient(135deg,#7b2ff7,#0ea5e9);display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px;box-shadow:0 18px 60px rgba(59,130,246,0.18);z-index:20000;cursor:pointer;transition:transform .18s ease}
+.chat-fab:hover{transform:translateY(-6px) rotate(-6deg);box-shadow:0 30px 100px rgba(59,130,246,0.28)}
+.edu-chat-panel{position:fixed;right:22px;bottom:100px;width:360px;max-height:70vh;background:linear-gradient(180deg,#ffffff,rgba(255,255,255,0.96));border-radius:12px;box-shadow:0 30px 120px rgba(2,6,23,0.18);overflow:hidden;display:none;flex-direction:column;z-index:20001}
+.edu-chat-panel.open{display:flex}
+.edu-chat-panel .chat-header{padding:12px;background:linear-gradient(90deg,#7b2ff7,#0ea5e9);color:#fff;display:flex;align-items:center;justify-content:space-between}
+.edu-chat-panel .chat-body{padding:12px;overflow:auto;flex:1;background:linear-gradient(180deg,rgba(245,247,255,0.8),rgba(250,250,255,0.9))}
+.edu-chat-panel .chat-footer{padding:10px;border-top:1px solid #eef2ff;background:#fff;display:flex;gap:8px}
+.edu-chat-panel .contacts{max-height:120px;overflow:auto;margin-bottom:8px}
+.edu-chat-panel .msg{padding:8px 10px;border-radius:12px;margin-bottom:8px;max-width:80%}
+.edu-chat-panel .from-me{background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff;margin-left:auto}
+.edu-chat-panel .from-them{background:#fff;border:1px solid #eef2f6;color:#111}
+
+/* ensure main content keeps margin when sidebar is present */
+.main{margin-left:var(--cs-width);transition:margin .2s}

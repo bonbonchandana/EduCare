@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EduCare | Counselor • Student Hobbies</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root{--gradA:#0ea5a4;--gradB:#3b82f6;--bg:#f7fafc;--card:#fff;--muted:#6b7280}
+    *{box-sizing:border-box}
+    body{margin:0;display:flex;min-height:100vh;background:var(--bg);font-family:'Poppins',sans-serif}
+    .sidebar{width:240px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:18px 12px;display:flex;flex-direction:column}
+    .brand{font-weight:600;font-size:20px;text-align:center;margin-bottom:12px}
+    .nav a{display:block;color:#fff;text-decoration:none;padding:8px 12px;border-radius:10px;margin:6px 6px}
+    .main{flex:1;padding:22px;overflow:auto}
+    .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 8px 28px rgba(2,6,23,.06);margin-bottom:16px}
+    .student-row{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid #f1f5f9}
+    .muted{color:var(--muted)}
+    .hobby-tag{display:inline-block;padding:6px 10px;border-radius:999px;background:#f0f9ff;border:1px solid #e6f6ff}
+    .btn{background:linear-gradient(90deg,#7b2ff7,#f107a3);color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .secondary{background:#f3f4f6;border:1px solid #e5e7eb;padding:8px 12px;border-radius:8px;cursor:pointer}
+    textarea,input{width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb}
+  </style>
+  <link rel="stylesheet" href="counselor-sidebar.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="students.html">Students</a>
+      <a class="active" href="hobbies.html">Hobbies</a>
+      <a href="reports.html">Reports</a>
+      <a href="chat.html">Communication</a>
+      <a href="profile.html">Profile</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <h1>Assigned Students • Hobbies</h1>
+    <p class="muted">View and track hobbies for your assigned students. Add tasks, leave feedback, and perform level checks.</p>
+
+    <div class="card" id="studentsCard">
+      <h3>Your Students</h3>
+      <div id="studentList"></div>
+    </div>
+
+    <div class="card" id="detailCard" style="display:none">
+      <div id="detailHeader" style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <h3 id="detailName"></h3>
+          <div class="muted" id="detailMeta"></div>
+        </div>
+        <div><button id="backToList" class="secondary">Back</button></div>
+      </div>
+      <div id="hobbyDetailArea" style="margin-top:12px"></div>
+    </div>
+
+  </main>
+
+  <script src="../admin/admin.js"></script>
+  <script src="counselor.js"></script>
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <script>
+    (function(){
+      if(!window.EduCareAdmin || !window.EduCareCounselor) return;
+      const listEl = document.getElementById('studentList');
+      const detailCard = document.getElementById('detailCard');
+      const studentsCard = document.getElementById('studentsCard');
+      const detailName = document.getElementById('detailName');
+      const detailMeta = document.getElementById('detailMeta');
+      const hobbyDetailArea = document.getElementById('hobbyDetailArea');
+      const backBtn = document.getElementById('backToList');
+
+      function uid(){ return Math.random().toString(36).slice(2,9); }
+      function escapeHtml(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+      function renderList(){
+        const students = EduCareCounselor.getAssignedStudents();
+        if(!students.length){ listEl.innerHTML = '<div class="muted">No assigned students.</div>'; return; }
+        listEl.innerHTML = students.map(st=>{
+          const hobbies = (st.hobbies||[]).slice(0,3).map(h=>`<span class="hobby-tag">${escapeHtml(h.name)}</span>`).join(' ');
+          return `<div class="student-row"><div><strong>${escapeHtml(st.name)}</strong><div class="muted small">ID: ${st.pin} • Risk: ${st.risk || 'N/A'}</div></div><div style="display:flex;gap:8px;align-items:center">${hobbies || '<span class="muted">No hobbies</span>'}<button class="btn" onclick="openStudentHobbies('${st.id}')">Open</button></div></div>`;
+        }).join('');
+      }
+
+      window.openStudentHobbies = function(studentId){
+        const s = EduCareAdmin.getById('students', studentId);
+        if(!s) return alert('Student not found');
+        detailName.textContent = s.name;
+        detailMeta.textContent = `ID: ${s.pin} • Branch: ${s.branch || '-'} • Counselor: ${ EduCareAdmin.getById('counselors', s.counselorId) ? EduCareAdmin.getById('counselors', s.counselorId).name : '-' }`;
+        studentsCard.style.display = 'none';
+        detailCard.style.display = 'block';
+        renderStudentDetail(s);
+      };
+
+      function renderStudentDetail(student){
+        const hobbies = student.hobbies || [];
+        hobbyDetailArea.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center"><h4>Hobbies (${hobbies.length})</h4><button class="secondary" onclick="addHobbyForStudent('${student.id}')">Add Hobby</button></div>
+          <div id="hobbyListDetail" style="margin-top:12px">${hobbies.length ? hobbies.map(h=>renderHobbyDetail(student.id,h)).join('') : '<div class="muted">Student has no hobbies yet.</div>'}</div>
+        `;
+      }
+
+      function renderHobbyDetail(studentId, h){
+        const progressHtml = (h.progress||[]).map(p=>`<div style="font-size:13px;margin-top:6px;padding:8px;border-radius:8px;background:#f8fafc;border:1px solid #eef2f6"><strong>${escapeHtml(p.title)}</strong> — <span class="muted small">${new Date(p.at).toLocaleDateString()}</span><div style="margin-top:6px">${escapeHtml(p.note||'')}</div></div>`).join('');
+        const commentsHtml = (h.comments||[]).map(c=>`<div style="margin-top:6px;font-size:13px"><strong>${escapeHtml(c.from)}</strong> — <span class="muted small">${new Date(c.at).toLocaleString()}</span><div>${escapeHtml(c.text)}</div></div>`).join('');
+        return `<div style="padding:12px;border:1px solid #eef2f6;border-radius:8px;margin-top:10px;background:#fff">
+          <div style="display:flex;justify-content:space-between;align-items:center"><div><strong>${escapeHtml(h.name)}</strong><div class="muted small">Level: ${escapeHtml(h.level)}</div></div>
+          <div style="display:flex;gap:8px"><button class="secondary" onclick="assignTask('${studentId}','${h.id}')">Assign Task</button><button class="secondary" onclick="leaveFeedback('${studentId}','${h.id}')">Leave Feedback</button><button class="secondary" onclick="levelCheck('${studentId}','${h.id}')">Level Check</button></div></div>
+          <div style="margin-top:8px">${escapeHtml(h.notes||'')}</div>
+          <div style="margin-top:8px">${progressHtml}</div>
+          <div style="margin-top:8px">${commentsHtml}</div>
+        </div>`;
+      }
+
+      // Add hobby for student (simple prompt)
+      window.addHobbyForStudent = function(studentId){
+        const name = prompt('Hobby name (e.g., Guitar)');
+        if(!name) return;
+        const level = prompt('Level: Beginner / Intermediate / Advanced', 'Beginner') || 'Beginner';
+        const notes = prompt('Notes / goal') || '';
+        const store = EduCareAdmin.getStore();
+        const st = (store.users && store.users.students||[]).find(x=>x.id===studentId);
+        if(!st) return alert('Student not found');
+        st.hobbies = st.hobbies || [];
+        st.hobbies.push({ id: 'hob_' + uid(), name, level, notes, createdAt: new Date().toISOString(), progress: [], comments: [] });
+        EduCareAdmin.setStore(store);
+        renderStudentDetail(st);
+      };
+
+      // Assign a task on hobby — creates a progress item (counselor -> student) and notifies student
+      window.assignTask = function(studentId, hobbyId){
+        const task = prompt('Task for student (e.g., practice 20 minutes/day for 2 weeks)');
+        if(!task) return;
+        const due = prompt('Due date (YYYY-MM-DD)', '');
+        const store = EduCareAdmin.getStore();
+        const st = (store.users && store.users.students||[]).find(x=>x.id===studentId);
+        if(!st) return alert('Student not found');
+        const h = (st.hobbies||[]).find(x=>x.id===hobbyId);
+        if(!h) return alert('Hobby not found');
+        h.progress = h.progress || [];
+        h.progress.push({ id: 't_' + uid(), title: 'Task: ' + task, note: due ? 'Due: '+due : '', at: new Date().toISOString(), assignedBy: EduCareCounselor.getCurrentCounselorId() });
+        // add a counselor comment too
+        h.comments = h.comments || [];
+        h.comments.push({ id: 'c_' + uid(), from: (EduCareCounselor.getCurrentCounselor()||{}).name || 'Counselor', text: `Assigned task: ${task}${due? ' (Due: '+due +')' : ''}`, at: new Date().toISOString() });
+        // notify student
+        try{
+          const studentUser = (store.users && store.users.students||[]).find(x=>x.id===studentId);
+          if(studentUser){ studentUser.notifications = studentUser.notifications || []; studentUser.notifications.push({ id:'notif_'+uid(), type:'hobby_task', title:'New hobby task', message:`Counselor assigned a task for ${h.name}: ${task}`, at: new Date().toISOString(), from: EduCareCounselor.getCurrentCounselorId(), read:false }); }
+        }catch(e){ console.warn('notify failed', e); }
+        EduCareAdmin.setStore(store);
+        renderStudentDetail(st);
+        alert('Task assigned and student notified.');
+      };
+
+      // Leave feedback (counselor comment)
+      window.leaveFeedback = function(studentId, hobbyId){
+        const text = prompt('Feedback for student');
+        if(!text) return;
+        const store = EduCareAdmin.getStore();
+        const st = (store.users && store.users.students||[]).find(x=>x.id===studentId);
+        const h = (st.hobbies||[]).find(x=>x.id===hobbyId);
+        h.comments = h.comments || [];
+        h.comments.push({ id:'c_'+uid(), from: (EduCareCounselor.getCurrentCounselor()||{}).name || 'Counselor', text, at: new Date().toISOString() });
+        // notify student
+        st.notifications = st.notifications || [];
+        st.notifications.push({ id:'notif_'+uid(), type:'hobby_feedback', title:'Counselor feedback', message:`Feedback on ${h.name}: ${text}`, at: new Date().toISOString(), from: EduCareCounselor.getCurrentCounselorId(), read:false });
+        EduCareAdmin.setStore(store);
+        renderStudentDetail(st);
+        alert('Feedback saved and student notified.');
+      };
+
+      // Level check: quick assessment — counselor records result and can mark level up/down
+      window.levelCheck = function(studentId, hobbyId){
+        const store = EduCareAdmin.getStore();
+        const st = (store.users && store.users.students||[]).find(x=>x.id===studentId);
+        const h = (st.hobbies||[]).find(x=>x.id===hobbyId);
+        const result = prompt('Assessment result (e.g., Satisfactory / Needs Improvement / Excellent)');
+        if(!result) return;
+        const newLevel = prompt('Recommend level (Beginner/Intermediate/Advanced)', h.level) || h.level;
+        h.assessments = h.assessments || [];
+        h.assessments.push({ id:'a_'+uid(), result, at:new Date().toISOString(), assessor: (EduCareCounselor.getCurrentCounselor()||{}).name||'Counselor' });
+        h.level = newLevel;
+        h.comments = h.comments || [];
+        h.comments.push({ id:'c_'+uid(), from: (EduCareCounselor.getCurrentCounselor()||{}).name||'Counselor', text:`Level check: ${result} — level set to ${newLevel}`, at: new Date().toISOString() });
+        // notify student
+        st.notifications = st.notifications || [];
+        st.notifications.push({ id:'notif_'+uid(), type:'hobby_assessment', title:'Hobby assessment', message:`Your hobby ${h.name} was assessed: ${result}. Level: ${newLevel}`, at: new Date().toISOString(), from: EduCareCounselor.getCurrentCounselorId(), read:false });
+        EduCareAdmin.setStore(store);
+        renderStudentDetail(st);
+        alert('Assessment recorded and student notified.');
+      };
+
+      // Back button
+      backBtn.addEventListener('click', ()=>{ detailCard.style.display = 'none'; studentsCard.style.display = 'block'; renderList(); });
+
+      // Initial render and subscribe to store updates
+      function init(){
+        if(EduCareCounselor.ensureCounselorSelected()) renderList();
+        else window.addEventListener('counselor-ready', renderList, {once:true});
+        EduCareAdmin.onStoreUpdated(()=>{
+          const cId = EduCareCounselor.getCurrentCounselorId();
+          if(!cId) return;
+          if(detailCard.style.display === 'block'){
+            const st = EduCareAdmin.getById('students', document.querySelector('#detailName') && document.querySelector('#detailName').dataset ? document.querySelector('#detailName').dataset.sid : '');
+            // simply re-render list/detail
+            renderList();
+          } else renderList();
+        });
+      }
+      init();
+    })();
+  </script>
+  
+</body>
+</html>

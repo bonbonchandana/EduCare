@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Counselor • Reports & Analytics</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="counselor-sidebar.css" />
+  <script type="module" src="../admin/educare-data-firebase.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root{--gradA:#0ea5e9;--gradB:#7c3aed;--bg:#f5f7fb;--card:#fff}
+    *{box-sizing:border-box}
+    body{margin:0;display:flex;min-height:100vh;background:var(--bg);font-family:'Poppins',sans-serif}
+    .sidebar{width:240px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:22px 12px;display:flex;flex-direction:column}
+    .brand{font-weight:600;font-size:20px;text-align:center;margin-bottom:16px}
+    .nav a{display:block;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;margin:6px 6px;transition:.2s}
+    .nav a:hover,.nav a.active{background:rgba(255,255,255,.2)}
+    .main{flex:1;padding:24px;overflow:auto}
+    .chartBox{background:#fff;border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:18px;margin-bottom:22px}
+    canvas{width:100%!important;max-height:360px}
+    button{padding:10px 16px;border:none;border-radius:10px;background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff;cursor:pointer}
+  /* Cinematic orange modal styles */
+    .modal-box{background:linear-gradient(180deg,#ff7a18,#ffb347);color:#071013;border-radius:12px;padding:18px;box-shadow:0 20px 60px rgba(255,140,0,0.22);transition:transform .28s ease,box-shadow .28s ease;border:1px solid rgba(255,255,255,0.06)}
+    .modal-box:hover{transform:translateY(-6px) scale(1.006);box-shadow:0 30px 90px rgba(255,140,0,0.32),0 0 40px rgba(255,200,0,0.06) inset}
+    .modal-glow{animation:cinematicGlow 3.6s ease-in-out infinite}
+    @keyframes cinematicGlow{0%{box-shadow:0 10px 30px rgba(255,140,0,0.12);transform:translateY(0)}50%{box-shadow:0 40px 110px rgba(255,140,0,0.28);transform:translateY(-6px)}100%{box-shadow:0 10px 30px rgba(255,140,0,0.12);transform:translateY(0)}}
+    /* ensure nested modal content remains scrollable and readable */
+    #studentDetailModal .modal-box,#subjectModal .modal-box,#analyzeModal .modal-box{max-height:90vh;overflow:auto}
+  /* Cinematic blue glowing Assigned Students box */
+  #studentsBox{background:linear-gradient(180deg,#0ea5e9 0%,#2563eb 50%,#7c3aed 100%);color:#fff;border-radius:16px;padding:18px;box-shadow:0 18px 60px rgba(59,130,246,0.12);transition:transform .28s ease,box-shadow .28s ease;border:1px solid rgba(255,255,255,0.04);overflow:hidden}
+  #studentsBox .students-row{display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:10px;margin-bottom:10px;background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02));backdrop-filter:blur(4px)}
+  #studentsBox:hover{transform:translateY(-6px);box-shadow:0 40px 140px rgba(59,130,246,0.22),0 0 50px rgba(99,102,241,0.08) inset}
+  .blue-glow{animation:bluePulse 4s ease-in-out infinite}
+  @keyframes bluePulse{0%{box-shadow:0 14px 40px rgba(59,130,246,0.08)}50%{box-shadow:0 48px 140px rgba(59,130,246,0.22)}100%{box-shadow:0 14px 40px rgba(59,130,246,0.08)}}
+  /* Student text glow improvements for visibility */
+  #studentsBox .stu-name{color:#fff;font-weight:700;font-size:16px;text-shadow:0 6px 28px rgba(59,130,246,0.16),0 0 10px rgba(96,165,250,0.18)}
+  #studentsBox .stu-meta{color:rgba(255,255,255,0.9);font-size:13px;text-shadow:0 3px 12px rgba(0,0,0,0.36)}
+  #studentsBox .risk-low{color:#34d399;text-shadow:0 0 14px rgba(52,211,153,0.28);font-weight:700}
+  #studentsBox .risk-medium{color:#fbbf24;text-shadow:0 0 14px rgba(251,191,36,0.28);font-weight:700}
+  #studentsBox .risk-high{color:#fb7185;text-shadow:0 0 16px rgba(239,68,68,0.28);font-weight:700}
+  </style>
+  <link rel="stylesheet" href="counselor-sidebar.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="students.html">Students</a>
+      <a href="risk-view.html">AI Risk View</a>
+      <a href="counseling.html">Counseling & Feedback</a>
+      <a href="hobbies.html">Hobbies</a>
+      <a href="chat.html">Communication</a>
+      <a class="active" href="reports.html">Reports & Analytics</a>
+      <a href="profile.html">Profile</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <h1>Counseling Reports & Analytics</h1>
+    <p style="color:#6b7280">View trends for assigned students and counseling sessions. Generate and download a detailed PDF summary.</p>
+
+    <div class="chartBox">
+      <h3>Risk Distribution (Assigned Students)</h3>
+      <canvas id="riskChart"></canvas>
+    </div>
+
+    <div class="chartBox">
+      <h3>Sessions Over Time</h3>
+      <canvas id="sessionChart"></canvas>
+    </div>
+
+    <div style="text-align:right">
+      <button id="pdfBtn">Download PDF Report</button>
+    </div>
+    
+    <div class="chartBox" id="studentsBox">
+      <h3>Assigned Students</h3>
+      <div id="studentsTableWrap"></div>
+    </div>
+
+    <!-- Student detail modal -->
+    <div id="studentDetailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center;padding:20px">
+      <div class="modal-box modal-glow" style="max-width:900px;width:100%;max-height:90vh;overflow:auto;position:relative">
+        <button id="detailClose" style="position:absolute;right:12px;top:12px;border:none;background:transparent;font-size:18px;cursor:pointer">✕</button>
+        <div id="detailContent"></div>
+      </div>
+    </div>
+
+    <!-- Subject marks nested modal -->
+    <div id="subjectModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:11000;align-items:center;justify-content:center;padding:20px">
+      <div class="modal-box modal-glow" style="max-width:640px;width:100%;max-height:80vh;overflow:auto;position:relative;padding:16px">
+        <button id="subjectClose" style="position:absolute;right:12px;top:12px;border:none;background:transparent;font-size:18px;cursor:pointer">✕</button>
+        <div id="subjectContent"></div>
+      </div>
+    </div>
+
+    <!-- Analyze modal (select categories + charts) -->
+    <div id="analyzeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center;padding:20px">
+      <div class="modal-box modal-glow" style="max-width:920px;width:100%;max-height:90vh;overflow:auto;position:relative;padding:18px">
+        <button id="analyzeClose" style="position:absolute;right:12px;top:12px;border:none;background:transparent;font-size:18px;cursor:pointer;color:#071013">✕</button>
+        <div style="display:flex;gap:18px">
+          <div style="flex:0 0 260px;border-right:1px solid #f1f5f9;padding-right:12px">
+            <h4>Select categories</h4>
+            <div><label><input type="checkbox" value="attendance" class="an-cat" checked/> Attendance</label></div>
+            <div><label><input type="checkbox" value="marks" class="an-cat" checked/> Marks</label></div>
+            <div><label><input type="checkbox" value="hobbies" class="an-cat" checked/> Hobbies</label></div>
+            <div><label><input type="checkbox" value="sessions" class="an-cat" checked/> Sessions</label></div>
+            <div><label><input type="checkbox" value="stress" class="an-cat" checked/> Stress</label></div>
+            <div style="margin-top:12px"><button id="analyzeRenderBtn">Render Charts</button></div>
+          </div>
+          <div style="flex:1;padding-left:12px">
+            <div id="analyzeCharts"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Quick Chat markup (shared) -->
+  <div id="eduChatPanel" class="edu-chat-panel" aria-hidden="true">
+    <div class="chat-header">
+      <div style="display:flex;align-items:center;gap:8px"><strong>Quick Chat</strong><span style="font-size:12px;opacity:.9;margin-left:6px">Support & students</span></div>
+      <div><button id="chatCloseBtn" style="background:transparent;border:none;color:rgba(255,255,255,0.9);font-size:18px;cursor:pointer">✕</button></div>
+    </div>
+    <div class="chat-body">
+      <div class="contacts" id="chatContacts"></div>
+      <div id="chatMessages"></div>
+    </div>
+    <div class="chat-footer">
+      <select id="chatTarget" style="flex:1;padding:8px;border-radius:8px;border:1px solid #eef2f6">
+        <option value="">Select student</option>
+      </select>
+      <input id="chatInput" placeholder="Write a message" style="flex:2;padding:8px;border-radius:8px;border:1px solid #eef2f6" />
+      <button id="chatSend">Send</button>
+    </div>
+  </div>
+
+
+  <script src="../admin/admin.js"></script>
+  <script src="counselor.js"></script>
+  <script src="/assets/chatbot.js"></script>
+  <script>
+    function renderCharts(){
+      const dist = EduCareCounselor.riskDistributionForCounselor();
+      const riskData = [dist.Low||0, dist.Medium||0, dist.High||0];
+      new Chart(document.getElementById('riskChart'), {
+        type:'doughnut',
+        data:{labels:['Low','Medium','High'], datasets:[{data:riskData, backgroundColor:['#22c55e','#facc15','#ef4444']}]},
+        options:{plugins:{legend:{position:'bottom'}}}
+      });
+
+      // Sessions over time
+      const sessions = EduCareCounselor.getSessionsForCounselor();
+      const monthly = {};
+      sessions.forEach(s=>{
+        const d=new Date(s.date); const key=`${d.getFullYear()}-${d.getMonth()+1}`;
+        monthly[key]=(monthly[key]||0)+1;
+      });
+      const labels=Object.keys(monthly).sort();
+      const values=labels.map(k=>monthly[k]);
+      new Chart(document.getElementById('sessionChart'), {
+        type:'line',
+        data:{labels,datasets:[{label:'Sessions',data:values,borderColor:'#7b2ff7',backgroundColor:'#e9d5ff'}]},
+        options:{plugins:{legend:{display:false}}}
+      });
+    }
+
+    document.getElementById('pdfBtn').onclick = ()=>{
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p','pt','a4');
+      const c = EduCareCounselor.getCurrentCounselor();
+      pdf.setFont('Helvetica','bold');
+      pdf.text('Counselor Report – EduCare',40,40);
+      pdf.setFont('Helvetica','normal');
+      pdf.text(`Counselor: ${c.name}`,40,60);
+      pdf.text(`Generated: ${new Date().toLocaleString()}`,40,80);
+      const s = EduCareCounselor.getSessionsForCounselor();
+      pdf.text(`Total Sessions: ${s.length}`,40,110);
+      const d = EduCareCounselor.riskDistributionForCounselor();
+      pdf.text(`Risk Levels (Assigned Students):`,40,130);
+      pdf.text(`Low: ${d.Low||0}`,60,150);
+      pdf.text(`Medium: ${d.Medium||0}`,60,170);
+      pdf.text(`High: ${d.High||0}`,60,190);
+      pdf.text('For detailed charts, please refer to the EduCare web dashboard.',40,220);
+      pdf.save('Counselor_Report.pdf');
+    };
+
+    if(EduCareCounselor.ensureCounselorSelected()) renderCharts();
+    else window.addEventListener('counselor-ready', renderCharts,{once:true});
+
+    // ---------------- Student list, detail modal & analysis ----------------
+    function renderStudentsTable(){
+      const students = EduCareCounselor.getAssignedStudents();
+      const wrap = document.getElementById('studentsTableWrap');
+      if(!students || !students.length){ wrap.innerHTML = '<div class="muted">No assigned students</div>'; return; }
+      const rows = students.map(s=>{
+        const riskClass = ((s.risk||'')+'').toLowerCase();
+        return `<div class="students-row">
+          <div>
+            <div class="stu-name">${escapeHtml(s.name)}</div>
+            <div class="stu-meta">ID: ${escapeHtml(s.pin || s.id)} • ${escapeHtml(s.branch || '')} • Risk: <strong class="risk-${riskClass}">${escapeHtml(s.risk||'N/A')}</strong></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn" data-id="${s.id}" onclick="openStudentDetail('${s.id}')">View</button>
+            <button class="btn" data-id="${s.id}" onclick="openAnalyzeModal('${s.id}')">Analyze</button>
+          </div>
+        </div>`;
+      }).join('');
+      wrap.innerHTML = rows;
+    }
+
+    function escapeHtml(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    window.openStudentDetail = function(studentId){
+      try{
+        const store = EduCareAdmin.getStore(); if(!store) return alert('Store unavailable');
+        const s = (store.users && store.users.students||[]).find(x=>x.id===studentId);
+        if(!s) return alert('Student not found');
+        const sessions = (store.sessions||[]).filter(se=>se.studentId===studentId);
+        const hobbies = s.hobbies || [];
+        // marks may be stored as s.marks = { subject: [ {at, score} ] }
+        const marks = s.marks || {};
+
+        const html = `
+          <h2 style="margin:0 0 8px">${escapeHtml(s.name)}</h2>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+            <div style="padding:10px;background:#f8fafc;border-radius:8px">Attendance<br><strong>${s.attendance||'N/A'}%</strong></div>
+            <div style="padding:10px;background:#f8fafc;border-radius:8px">GPA<br><strong>${s.cgpa||'N/A'}</strong></div>
+            <div style="padding:10px;background:#f8fafc;border-radius:8px">Stress<br><strong>${s.stress||'N/A'}</strong></div>
+            <div style="padding:10px;background:#f8fafc;border-radius:8px">Risk<br><strong style="color:${s.risk==='High'? '#ef4444':(s.risk==='Medium'?'#f59e0b':'#10b981')}">${s.risk||'N/A'}</strong></div>
+            <div style="padding:10px;background:#f8fafc;border-radius:8px">Sessions<br><strong>${sessions.length}</strong></div>
+          </div>
+
+          <div style="margin-top:8px">
+            <h4>Hobbies</h4>
+            <div>${hobbies.length? hobbies.map(h=>`<div style="padding:8px;border:1px solid #eef2f6;border-radius:8px;margin-bottom:6px"><strong>${escapeHtml(h.name)}</strong> <div style="color:#6b7280;font-size:13px">Level: ${h.level||''}</div></div>`).join('') : '<div class="muted">No hobbies recorded</div>'}</div>
+          </div>
+
+          <div style="margin-top:8px">
+            <h4>Sessions (latest 10)</h4>
+            <div>${sessions.length? sessions.slice(0,10).map(se=>`<div style="padding:8px;border-bottom:1px solid #f1f5f9"><strong>${new Date(se.date).toLocaleString()}</strong><div style="color:#6b7280">${escapeHtml(se.notes||se.outcome||'No notes')}</div></div>`).join('') : '<div class="muted">No sessions</div>'}</div>
+          </div>
+
+          <div style="margin-top:8px">
+            <h4>Marks</h4>
+            <div>${Object.keys(marks).length? Object.keys(marks).map(sub=>`<div style="padding:8px;border:1px solid #eef2f6;border-radius:8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><div><strong>${escapeHtml(sub)}</strong><div style="color:#6b7280;font-size:13px">${(marks[sub]||[]).map(m=>escapeHtml(m.score||m.value||'')).join(', ')}</div></div><div><button class="secondary" onclick="openSubjectMarks('${studentId}','${encodeURIComponent(sub)}')">View</button></div></div>`).join('') : '<div class="muted">No marks recorded</div>'}</div>
+          </div>
+
+          <div style="margin-top:14px;text-align:right">
+            <button id="exportStudentBtn">Export Student</button>
+            <button id="exportAllBtn">Export All Students</button>
+          </div>
+        `;
+
+        document.getElementById('detailContent').innerHTML = html;
+        document.getElementById('studentDetailModal').style.display = 'flex';
+
+        document.getElementById('detailClose').onclick = ()=> document.getElementById('studentDetailModal').style.display = 'none';
+        document.getElementById('exportStudentBtn').onclick = ()=> exportStudentReport(studentId);
+        document.getElementById('exportAllBtn').onclick = ()=> exportAllStudentsReport();
+      }catch(e){ console.error(e); alert('Failed to open student detail'); }
+    };
+
+    function openSubjectMarks(studentId, encodedSub){
+      try{
+        const sub = decodeURIComponent(encodedSub);
+        const store = EduCareAdmin.getStore(); if(!store) return alert('Store unavailable');
+        const s = (store.users && store.users.students||[]).find(x=>x.id===studentId);
+        if(!s) return alert('Student not found');
+        const marks = s.marks || {};
+        const data = marks[sub] || [];
+        const html = `<h3>${escapeHtml(s.name)} — ${escapeHtml(sub)}</h3>${data.length? data.map(d=>`<div style="padding:8px;border-bottom:1px solid #f1f5f9"><strong>${escapeHtml(d.score||d.value||'')}</strong> — <span class="muted small">${new Date(d.at||d.date||Date.now()).toLocaleString()}</span><div>${escapeHtml(d.note||'')}</div></div>`).join('') : '<div class="muted">No marks for this subject</div>'}`;
+        document.getElementById('subjectContent').innerHTML = html;
+        document.getElementById('subjectModal').style.display = 'flex';
+        document.getElementById('subjectClose').onclick = ()=> document.getElementById('subjectModal').style.display = 'none';
+      }catch(e){ console.error(e); }
+    }
+
+    function exportStudentReport(studentId){
+      const store = EduCareAdmin.getStore(); if(!store) return alert('Store unavailable');
+      const s = (store.users && store.users.students||[]).find(x=>x.id===studentId);
+      if(!s) return alert('Student not found');
+      const payload = { student: s, sessions: (store.sessions||[]).filter(se=>se.studentId===studentId) };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `student_${s.id}_report.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+
+    function exportAllStudentsReport(){
+      const store = EduCareAdmin.getStore(); if(!store) return alert('Store unavailable');
+      const payload = { store }; // export full store for counselor
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `educare_all_students_report.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+
+    // Analyze modal
+    window.openAnalyzeModal = function(studentId){
+      try{
+        const store = EduCareAdmin.getStore(); if(!store) return alert('Store unavailable');
+        const s = (store.users && store.users.students||[]).find(x=>x.id===studentId);
+        if(!s) return alert('Student not found');
+        document.getElementById('analyzeModal').style.display = 'flex';
+        document.getElementById('analyzeClose').onclick = ()=> document.getElementById('analyzeModal').style.display = 'none';
+        document.getElementById('analyzeRenderBtn').onclick = ()=> renderAnalyzeCharts(s);
+        // initial render
+        renderAnalyzeCharts(s);
+      }catch(e){ console.error(e); }
+    };
+
+    function renderAnalyzeCharts(student){
+      const store = EduCareAdmin.getStore(); if(!store) return;
+      const selected = Array.from(document.querySelectorAll('.an-cat:checked')).map(i=>i.value);
+      const container = document.getElementById('analyzeCharts'); container.innerHTML = '';
+      if(selected.includes('attendance')){
+        const c = document.createElement('canvas'); c.style.maxHeight = '200px'; container.appendChild(c);
+        new Chart(c, { type:'bar', data:{labels:['Attendance'], datasets:[{label:'%',data:[student.attendance||0],backgroundColor:['#3b82f6']}]}, options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:100}} } });
+      }
+      if(selected.includes('marks')){
+        const marks = student.marks || {};
+        const subjects = Object.keys(marks);
+        if(subjects.length){
+          const labels = subjects;
+          const avg = subjects.map(sub=>{
+            const arr = marks[sub]||[]; const vals = arr.map(x=> Number(x.score||x.value||0)).filter(n=>!isNaN(n));
+            return vals.length? (vals.reduce((a,b)=>a+b,0)/vals.length):0;
+          });
+          const c2 = document.createElement('canvas'); container.appendChild(c2);
+          new Chart(c2, { type:'bar', data:{labels, datasets:[{label:'Avg score', data:avg, backgroundColor:'#7b2ff7'}]}, options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}} });
+        } else {
+          const note = document.createElement('div'); note.className='muted'; note.textContent = 'No marks available'; container.appendChild(note);
+        }
+      }
+      if(selected.includes('hobbies')){
+        const hCount = (student.hobbies||[]).length;
+        const el = document.createElement('div'); el.style.padding='12px'; el.innerHTML = `<h4>Hobbies (${hCount})</h4>${(student.hobbies||[]).map(h=>`<div style="padding:8px;border:1px solid #eef2f6;border-radius:8px;margin-bottom:6px">${escapeHtml(h.name)} — ${escapeHtml(h.level||'')}</div>`).join('')}`;
+        container.appendChild(el);
+      }
+      if(selected.includes('sessions')){
+        const sessions = (store.sessions||[]).filter(se=>se.studentId===student.id);
+        const el = document.createElement('div'); el.style.padding='12px'; el.innerHTML = `<h4>Sessions (${sessions.length})</h4>${sessions.map(se=>`<div style="padding:8px;border-bottom:1px solid #f1f5f9"><strong>${new Date(se.date).toLocaleString()}</strong><div style="color:#6b7280">${escapeHtml(se.notes||se.outcome||'')}</div></div>`).join('')}`;
+        container.appendChild(el);
+      }
+      if(selected.includes('stress')){
+        const c3 = document.createElement('canvas'); container.appendChild(c3);
+        new Chart(c3, { type:'doughnut', data:{labels:['Stress'], datasets:[{data:[student.stress||0, 10-(student.stress||0)], backgroundColor:['#ef4444','#e5e7eb']}]}, options:{plugins:{legend:{display:false}}} });
+      }
+    }
+
+    // wire initial student list render
+    if(EduCareCounselor.ensureCounselorSelected()) renderStudentsTable();
+    else window.addEventListener('counselor-ready', renderStudentsTable,{once:true});
+  </script>
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <script src="particles.js"></script>
+  <script>
+    try{ if(window.ParticleBG && document.getElementById('studentsBox')) ParticleBG.init('studentsBox',{ count:30, colorA:'#0ea5e9', colorB:'#7b2ff7' }); }catch(e){ console.warn('Particle init failed', e); }
+  </script>
+</body>
+</html>

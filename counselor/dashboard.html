@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Counselor • Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="counselor-sidebar.css" />
+  <!-- Firebase/data layer loaded by the page scripts -->
+  <script type="module" src="../admin/educare-data-firebase.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{--gradA:#0ea5e9;--gradB:#7c3aed;--bg:#f5f7fb;--card:#fff;--muted:#6b7280}
+    *{box-sizing:border-box} body{margin:0;display:flex;min-height:100vh;background:var(--bg);font-family:'Poppins',sans-serif}
+    .sidebar{width:240px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:22px 12px;display:flex;flex-direction:column}
+    .brand{font-weight:600;font-size:20px;text-align:center;margin-bottom:16px}
+    .nav a{display:block;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;margin:6px 6px;transition:.2s}
+    .nav a:hover,.nav a.active{background:rgba(255,255,255,.2)}
+    .main{flex:1;padding:24px;overflow:auto}
+    header{display:flex;justify-content:space-between;align-items:center}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin:18px 0}
+    .card{background:var(--card);border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:18px}
+    .list{background:var(--card);border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:18px}
+    .row{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid #f1f5f9}
+    .row:last-child{border-bottom:none}
+    .chip{padding:4px 8px;border-radius:999px;font-size:12px}
+    .low{background:#dcfce7;color:#166534}.med{background:#fef9c3;color:#92400e}.high{background:#fee2e2;color:#991b1b}
+    canvas{background:#fff;border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:14px}
+    /* Modal & panel styles (for counselor detail panels) */
+  /* Modal appears as a centered small window instead of full-screen */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.38);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .modal.open{display:flex}
+  .panel{background:var(--card);border-radius:12px;padding:14px;max-width:820px;min-width:320px;width:min(90%,820px);max-height:80vh;overflow:auto;box-shadow:0 12px 36px rgba(0,0,0,.18)}
+  .panel .panel-header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .panel .panel-body{margin-top:12px}
+  .panel table{width:100%;border-collapse:collapse;margin-top:6px}
+  .panel th,.panel td{padding:8px;border-bottom:1px solid #f1f5f9;text-align:left}
+  .panel thead th{background:#f8fafc}
+  /* Prevent body scroll when modal is open */
+  body.modal-open{overflow:hidden;height:100vh}
+  /* Intro cinematic glowing card */
+  #introBox{background:linear-gradient(135deg,#fff7ed 0%,#fff1e6 40%);border-radius:16px;padding:20px;position:relative;overflow:hidden}
+  #introBox::before{content:'';position:absolute;inset:-20%;background:radial-gradient(circle at 10% 10%, rgba(59,130,246,0.12), transparent 8%), radial-gradient(circle at 90% 80%, rgba(124,58,237,0.10), transparent 12%);transform:translateZ(0);z-index:0}
+  #introBox > *{position:relative;z-index:1}
+  #introBox:hover{transform:translateY(-6px);box-shadow:0 40px 120px rgba(124,58,237,0.16)}
+  /* dynamic color accent strip */
+  #introBoxAccent{height:8px;width:100%;border-radius:8px;margin-top:12px;background:linear-gradient(90deg,#0ea5e9,#7c3aed,#fb7185)}
+  </style>
+  <link rel="stylesheet" href="counselor-sidebar.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <a class="active" href="dashboard.html">Dashboard</a>
+      <a href="students.html">Students</a>
+      <a href="risk-view.html">AI Risk View</a>
+      <a href="counseling.html">Counseling & Feedback</a>
+      <a href="hobbies.html">Hobbies</a>
+      <a href="chat.html">Communication</a>
+      <a href="reports.html">Reports & Analytics</a>
+      <a href="profile.html">Profile</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header>
+      <h1>Counselor Dashboard</h1>
+      <div id="who" style="color:#6b7280"></div>
+    </header>
+
+    <section class="cards">
+      <div class="card" onclick="openCounselorPanel('students')"><div style="color:#6b7280;font-size:13px">Assigned Students</div><div id="countStudents" style="font-weight:600;font-size:26px;color:#0ea5e9">0</div><small style="display:block;margin-top:6px;color:#6b7280">Click to view details & export</small></div>
+      <div class="card" onclick="openCounselorPanel('highRisk')"><div style="color:#6b7280;font-size:13px">High Risk</div><div id="countHigh" style="font-weight:600;font-size:26px;color:#ef4444">0</div><small style="display:block;margin-top:6px;color:#6b7280">Click to view High-risk students</small></div>
+      <div class="card" onclick="openCounselorPanel('sessions')"><div style="color:#6b7280;font-size:13px">Upcoming Sessions</div><div id="countSessions" style="font-weight:600;font-size:26px;color:#7c3aed">0</div><small style="display:block;margin-top:6px;color:#6b7280">Click to view upcoming sessions</small></div>
+    </section>
+
+    <h3 style="margin:8px 0">Upcoming Sessions</h3>
+    <div id="sessionList" class="list"></div>
+
+    <div id="introBox" class="card" style="margin:18px 0">
+      <h3 style="margin-top:0;color:#071013">About EduCare & Your Role</h3>
+      <p id="introText" style="color:#073045">EduCare is a lightweight student wellbeing and academic support prototype. As a counselor, you can review assigned students, monitor risk indicators, schedule sessions, provide feedback, and collaborate with parents and faculty. Use the dashboards to identify students who need early interventions and create action plans to support their learning and mental wellbeing.</p>
+      <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px"><strong>Tip:</strong> Click on Assigned Students to view detailed reports, session history and export individual student summaries.</div>
+        <div style="flex:1;min-width:220px"><strong>Action:</strong> Use Counseling & Feedback to collect student feedback post-session and track improvements over time.</div>
+      </div>
+      <div id="introBoxAccent"></div>
+    </div>
+
+    <!-- Panel Modal -->
+    <div id="panelModal" class="modal">
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h2 id="panelTitle">Panel</h2>
+          <div style="display:flex;gap:8px">
+            <button id="exportPanelBtn" style="padding:6px 10px;background:#10b981;color:#fff;border-radius:8px;border:none;cursor:pointer">Export</button>
+            <button onclick="closePanel()" style="padding:6px 10px;border-radius:8px;border:none;cursor:pointer">Close</button>
+          </div>
+        </div>
+        <div id="panelContent" style="margin-top:12px"></div>
+        <canvas id="panelChart" style="margin-top:12px"></canvas>
+      </div>
+    </div>
+  </main>
+
+  <!-- Floating Chat FAB -->
+  <div id="eduChatFab" class="chat-fab" title="Open Chat">💬</div>
+  <div id="eduChatPanel" class="edu-chat-panel" aria-hidden="true">
+    <div class="chat-header">
+      <div style="display:flex;align-items:center;gap:8px"><strong>Quick Chat</strong><span style="font-size:12px;opacity:.9;margin-left:6px">Support & students</span></div>
+      <div><button id="chatCloseBtn" style="background:transparent;border:none;color:rgba(255,255,255,0.9);font-size:18px;cursor:pointer">✕</button></div>
+    </div>
+    <div class="chat-body">
+      <div class="contacts" id="chatContacts"></div>
+      <div id="chatMessages"></div>
+    </div>
+    <div class="chat-footer">
+      <select id="chatTarget" style="flex:1;padding:8px;border-radius:8px;border:1px solid #eef2f6">
+        <option value="">Select student</option>
+      </select>
+      <input id="chatInput" placeholder="Write a message" style="flex:2;padding:8px;border-radius:8px;border:1px solid #eef2f6" />
+      <button id="chatSend">Send</button>
+    </div>
+  </div>
+
+    <script type="module" src="../firebase/firebase-init.js"></script>
+    <script src="../firebase/firestore-sync.js"></script>
+  <script src="../admin/admin.js"></script>
+  <script src="counselor.js"></script>
+  <script>
+    function riskChip(r){
+      if(r==='High') return '<span class="chip high">High</span>';
+      if(r==='Medium') return '<span class="chip med">Medium</span>';
+      return '<span class="chip low">Low</span>';
+    }
+
+    function render(){
+      const counselor = EduCareCounselor.getCurrentCounselor();
+      if(!counselor) return; // wait for selection
+      document.getElementById('who').textContent = `${counselor.name} (${counselor.email})`;
+
+      const students = EduCareCounselor.getAssignedStudents();
+      const sessions = EduCareCounselor.getSessionsForCounselor();
+
+      document.getElementById('countStudents').textContent = students.length;
+      document.getElementById('countHigh').textContent = students.filter(s=>s.risk==='High').length;
+      document.getElementById('countSessions').textContent = sessions.filter(s=> new Date(s.date) >= new Date()).length;
+
+      // sessions list
+      const next = sessions.slice().sort((a,b)=> new Date(a.date)-new Date(b.date)).filter(s=> new Date(s.date)>=new Date()).slice(0,6);
+      document.getElementById('sessionList').innerHTML = next.length? next.map(s=>{
+        const st = EduCareAdmin.getById('students', s.studentId);
+        return `<div class="row"><div><div style="font-weight:600">${st?.name||s.studentId}</div><div style="font-size:12px;color:#6b7280">${new Date(s.date).toLocaleString()}</div></div><div>${riskChip(st?.risk)}</div></div>`;
+      }).join('') : '<div style="color:#6b7280">No upcoming sessions scheduled.</div>';
+
+      // Intro card (replaces risk chart) — optionally update dynamic intro text
+      const counselorName = counselor.name || '';
+      const introText = document.getElementById('introText');
+      if(introText) introText.textContent = `EduCare is a lightweight student wellbeing and academic support prototype. As a counselor (${counselorName}), you can review assigned students, monitor risk indicators, schedule sessions, provide feedback, and collaborate with parents and faculty.`;
+    }
+
+    // Initialize
+    if(EduCareCounselor.ensureCounselorSelected()){
+      render();
+    } else {
+      window.addEventListener('counselor-ready', render, { once:true });
+    }
+    EduCareAdmin.onStoreUpdated(render);
+
+    
+
+// Panel logic for counselor modal
+let __panelChart = null;
+function closePanel(){ document.getElementById('panelModal').classList.remove('open'); if(__panelChart) { try{ __panelChart.destroy(); }catch(e){} __panelChart=null; } }
+
+function openCounselorPanel(kind){
+  const modal = document.getElementById('panelModal');
+  const title = document.getElementById('panelTitle');
+  const content = document.getElementById('panelContent');
+  const store = EduCareAdmin.getStore(); if(!store) return;
+  const counselor = EduCareCounselor.getCurrentCounselor(); if(!counselor) return alert('No counselor selected');
+  const students = EduCareCounselor.getAssignedStudents();
+  const sessions = EduCareCounselor.getSessionsForCounselor();
+  title.textContent = kind==='students'? 'Assigned Students' : (kind==='highRisk'? 'High Risk Students' : 'Upcoming Sessions');
+
+  if(kind==='students' || kind==='highRisk'){
+    const rows = kind==='students' ? students : students.filter(s=>s.risk==='High');
+    if(!rows.length){ content.innerHTML = '<div style="color:#6b7280">No data</div>'; modal.classList.add('open'); return; }
+    let html = '<table><thead><tr><th>Name</th><th>PIN</th><th>Attendance</th><th>CGPA</th><th>Stress</th><th>Dropout %</th><th>Risk</th></tr></thead><tbody>';
+    rows.forEach(s=>{ html += `<tr><td>${s.name||'-'}</td><td>${s.pin||'-'}</td><td>${s.attendance||0}%</td><td>${s.cgpa||'-'}</td><td>${s.stress||'-'}</td><td>${(s.dropoutProb? (s.dropoutProb*100).toFixed(1)+'%':'-')}</td><td>${s.risk||'-'}</td></tr>`; });
+    html += '</tbody></table>';
+    content.innerHTML = html;
+
+    // chart: risk distribution among assigned students
+    const dist = EduCareCounselor.riskDistributionForCounselor();
+    const labels = ['Low','Medium','High'];
+    const vals = [dist.Low||0, dist.Medium||0, dist.High||0];
+    const ctx = document.getElementById('panelChart').getContext('2d');
+    if(__panelChart) __panelChart.destroy();
+    __panelChart = new Chart(ctx,{ type:'doughnut', data:{ labels, datasets:[{ data: vals, backgroundColor:['#22c55e','#f59e0b','#ef4444'] }]}, options:{plugins:{legend:{position:'bottom'}}, responsive:true } });
+  }
+
+  if(kind==='sessions'){
+    const upcoming = sessions.slice().sort((a,b)=> new Date(a.date)-new Date(b.date)).filter(s=>new Date(s.date) >= new Date());
+    if(!upcoming.length){ content.innerHTML = '<div style="color:#6b7280">No upcoming sessions scheduled.</div>'; modal.classList.add('open'); return; }
+    let html = '<table><thead><tr><th>Date</th><th>Student</th><th>Notes</th><th>Outcome</th></tr></thead><tbody>';
+    upcoming.forEach(ses=>{ const st = EduCareAdmin.getById('students', ses.studentId) || { name: ses.studentId }; html += `<tr><td>${new Date(ses.date).toLocaleString()}</td><td>${st.name}</td><td>${ses.notes||''}</td><td>${ses.outcome||''}</td></tr>`; });
+    html += '</tbody></table>';
+    content.innerHTML = html;
+
+    // chart: sessions per month
+    const monthly = {};
+    sessions.forEach(s=>{ const d=new Date(s.date); const k=`${d.getFullYear()}-${d.getMonth()+1}`; monthly[k]=(monthly[k]||0)+1; });
+    const labels = Object.keys(monthly).sort(); const vals = labels.map(k=>monthly[k]);
+    const ctx = document.getElementById('panelChart').getContext('2d');
+    if(__panelChart) __panelChart.destroy();
+    __panelChart = new Chart(ctx,{ type:'bar', data:{ labels, datasets:[{ label:'Sessions', data: vals, backgroundColor:'#3b82f6' }]}, options:{plugins:{legend:{display:false}}, responsive:true} });
+  }
+
+  // open modal and wire export button; prevent background scroll
+  modal.classList.add('open');
+  document.body.classList.add('modal-open');
+  document.getElementById('exportPanelBtn').onclick = ()=> exportCounselorPanel(kind, counselor);
+}
+
+// Close panel helper: destroy chart and restore body scrolling
+function closePanel(){ const modal = document.getElementById('panelModal'); modal.classList.remove('open'); document.body.classList.remove('modal-open'); if(__panelChart){ try{ __panelChart.destroy(); }catch(e){} __panelChart=null; } }
+
+function exportCounselorPanel(kind, counselor){
+  const students = EduCareCounselor.getAssignedStudents();
+  const sessions = EduCareCounselor.getSessionsForCounselor();
+  if(kind==='students' || kind==='highRisk'){
+    const rows = (kind==='students'? students : students.filter(s=>s.risk==='High'));
+    const headers = ['id','name','pin','attendance','cgpa','stress','dropoutProb','risk','parentId','counselorId'];
+    const out = rows.map(s=>({ id:s.id, name:s.name, pin:s.pin, attendance:s.attendance, cgpa:s.cgpa, stress:s.stress, dropoutProb: s.dropoutProb||'', risk:s.risk||'', parentId:s.parentId||'', counselorId:s.counselorId||'' }));
+    downloadCSV(`counselor_${kind}_${new Date().toISOString().split('T')[0]}.csv`, headers, out);
+    return;
+  }
+  if(kind==='sessions'){
+    const rows = sessions.slice().map(s=>{ const st = EduCareAdmin.getById('students', s.studentId) || {}; return { id:s.id, date:s.date, studentId:s.studentId, studentName: st.name||'', notes:s.notes||'', outcome:s.outcome||'' }; });
+    const headers = ['id','date','studentId','studentName','notes','outcome'];
+    downloadCSV(`counselor_sessions_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
+    return;
+  }
+}
+
+function downloadCSV(filename, headers, rows){
+  const csv = [headers.join(',')].concat(rows.map(r=> headers.map(h=> '"'+ (r[h]===undefined || r[h]===null?'':String(r[h]).replace(/"/g,'""')) +'"').join(','))).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+}
+
+// Close on Escape key when modal open
+window.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape'){
+    const modal = document.getElementById('panelModal');
+    if(modal && modal.classList.contains('open')) closePanel();
+  }
+});
+  </script>
+  <script src="/assets/chatbot.js"></script>
+  <script src="particles.js"></script>
+  <script>
+    // initialize particle background on the intro card
+    try{ if(window.ParticleBG && document.getElementById('introBox')) ParticleBG.init('introBox',{ count:36, colorA:'#7b2ff7', colorB:'#0ea5e9' }); }catch(e){ console.warn('Particle init failed', e); }
+  </script>
+</body>
+</html>

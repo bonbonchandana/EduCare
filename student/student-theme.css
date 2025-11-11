@@ -1,0 +1,106 @@
+/* Shared student portal theme: vibrant animated background, sidebar glow, and floating animated text */
+:root{
+  --student-grad-a: #0f172a; /* deep slate */
+  --student-grad-b: #0b1226; /* darker indigo */
+  --student-accent: #7c3aed; /* vivid accent */
+  --student-accent-2: #06b6d4; /* teal shimmer */
+  --student-card: rgba(12,14,22,0.75);
+  --student-card-border: rgba(124,58,237,0.12);
+  --student-glow: rgba(124,58,237,0.18);
+}
+
+/* Animated dark-tinged gradient background with subtle light accents */
+body{
+  background: radial-gradient(1200px 600px at 10% 20%, rgba(124,58,237,0.08), transparent),
+              radial-gradient(900px 400px at 90% 80%, rgba(6,182,212,0.06), transparent),
+              linear-gradient(135deg,var(--student-grad-a),var(--student-grad-b));
+  background-size: 200% 200%, 200% 200%, 100% 100%;
+  animation: bgShift 18s ease infinite;
+  color: #e6eef8;
+}
+@keyframes bgShift{
+  0%{background-position:0% 50%, 0% 50%, 0% 50%}
+  50%{background-position:100% 50%, 100% 50%, 0% 50%}
+  100%{background-position:0% 50%, 0% 50%, 0% 50%}
+}
+
+/* Sidebar theming */
+.sidebar{
+  background: linear-gradient(180deg, rgba(7,10,20,0.6), rgba(7,10,20,0.3));
+  border-right: 1px solid rgba(255,255,255,0.03);
+  box-shadow: 0 10px 40px rgba(2,6,23,0.6), inset 0 -6px 30px rgba(124,58,237,0.03);
+}
+.brand{
+  background: linear-gradient(90deg,var(--student-accent), var(--student-accent-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight:900;
+  letter-spacing:0.6px;
+  text-shadow: 0 8px 30px rgba(124,58,237,0.12);
+  animation: brandGlow 4s ease-in-out infinite;
+}
+@keyframes brandGlow{
+  0%,100%{filter:drop-shadow(0 0 0 rgba(255,255,255,0))}
+  50%{filter:drop-shadow(0 8px 30px rgba(255,107,107,0.15))}
+}
+
+.nav a{transition: all 220ms cubic-bezier(.2,.9,.2,1);}
+.nav a:hover{
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 14px 50px rgba(124,58,237,0.12), 0 6px 18px rgba(6,182,212,0.04);
+  background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+}
+
+/* Glowing button styles */
+button{transition:box-shadow .18s ease, transform .12s ease}
+button:hover{box-shadow:0 18px 60px rgba(124,58,237,0.14), 0 6px 24px rgba(6,182,212,0.06); transform:translateY(-3px)}
+
+/* Floating animated text area */
+.floating-area{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:40}
+.floating-word{position:absolute;font-weight:700;opacity:.85;font-size:18px;color:#fff;padding:6px 12px;border-radius:999px;mix-blend-mode:screen;transform:translateY(100vh);animation:floatUp 6s linear forwards}
+@keyframes floatUp{
+  0%{transform:translateY(110vh) scale(.8);opacity:0}
+  10%{opacity:1}
+  70%{opacity:1}
+  100%{transform:translateY(-10vh) scale(1.05);opacity:0}
+}
+
+/* Tab styles (used in parent dashboard but safe to include) */
+.tab-btn{background:transparent;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
+.tab-btn.active{background:rgba(255,255,255,0.06);box-shadow:0 8px 20px rgba(107,70,193,0.06)}
+
+/* Notifications in sidebar */
+#stuNotifToggle{font-size:16px;padding:6px 8px;border-radius:8px}
+#stuNotifToggle:hover{background:rgba(255,255,255,0.04)}
+#stuNotifPanel{box-shadow:0 8px 30px rgba(15,23,42,0.4)}
+
+/* Make cards slightly translucent to let the background glow through */
+/* Cards: dark translucent with glow on hover */
+.card, .info, .insights{
+  background: linear-gradient(180deg, rgba(12,14,22,0.75), rgba(20,22,34,0.6));
+  border: 1px solid var(--student-card-border);
+  border-radius: 14px;
+  backdrop-filter: blur(8px);
+  transition: transform .18s ease, box-shadow .22s ease, border-color .18s ease;
+}
+.card:hover, .info:hover, .insights:hover{
+  transform: translateY(-6px);
+  box-shadow: 0 30px 80px rgba(124,58,237,0.12), inset 0 0 40px rgba(6,182,212,0.02);
+  border-color: rgba(124,58,237,0.22);
+}
+
+/* Tables with glowing row hover and subtle header accent */
+table{width:100%;border-collapse:collapse;background:transparent}
+table thead th{background:linear-gradient(90deg, rgba(124,58,237,0.08), rgba(6,182,212,0.04));padding:10px;text-align:left;color: #e6eef8}
+table tbody td{padding:10px;border-bottom:1px solid rgba(255,255,255,0.03);color:#dbeafe}
+table tbody tr:hover{background:linear-gradient(90deg, rgba(124,58,237,0.04), rgba(6,182,212,0.02));box-shadow:0 12px 30px rgba(124,58,237,0.06);}
+
+/* Chart wrapper for canvas glow */
+.chart-wrapper{padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.02);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));box-shadow:0 20px 60px rgba(7,10,20,0.6);transition:box-shadow .25s ease, transform .18s ease}
+.chart-wrapper:hover{box-shadow:0 40px 120px rgba(124,58,237,0.14);transform:translateY(-6px)}
+
+/* Small responsive tweaks */
+@media (max-width:720px){
+  .brand{font-size:18px}
+  .floating-word{font-size:14px}
+}

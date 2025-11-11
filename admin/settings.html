@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Admin • System Settings</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <!-- Load Firebase + data layer FIRST -->
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <script type="module" src="./educare-data-firebase.js"></script>
+
+<script type="module">
+  import { EduCareData } from "./educare-data-firebase.js";
+
+  async function loadStudents() {
+    const students = await EduCareData.list("students");
+    const grid = document.getElementById("studentGrid");
+    if (!grid) return;
+    grid.innerHTML = students.map(s => `
+      <div class="card">
+        <div class="name">${s.name}</div>
+        <div class="meta">PIN: ${s.pin || '-'} | CGPA: ${s.cgpa ?? '-'}</div>
+        <button onclick="showStudent('${s.id}')">View</button>
+      </div>
+    `).join('');
+  }
+
+  async function showStudent(id) {
+    const st = await EduCareData.getById("students", id);
+    // TODO: render st into the DOM
+  }
+
+  async function createSession({ studentId, counselorId, date, notes, outcome }) {
+    await EduCareData.addSession({ studentId, counselorId, date, notes, outcome });
+  }
+
+  async function updateCounselor(id, payload) {
+    await EduCareData.update("counselors", id, payload);
+  }
+
+  // Do not populate the studentGrid on the Settings page.
+  // loadStudents(); // intentionally disabled for Settings view so the left student list is hidden here
+</script>
+
+  <div id="studentGrid" style="display:none;"></div>
+
+  <style>
+    :root{
+      --gradA:#673ab7;--gradB:#512da8;
+      --bg:#f5f7fb;--card:#fff;
+      --text:#111;--muted:#6b7280;
+    }
+    body.dark{
+      --bg:#1f2937;--card:#111827;
+      --text:#f9fafb;--muted:#9ca3af;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;display:flex;min-height:100vh;background:var(--bg);font-family:'Poppins',sans-serif;color:var(--text);transition:background .3s,color .3s}
+    .sidebar{width:240px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:22px 12px;display:flex;flex-direction:column}
+    .brand{font-weight:600;font-size:22px;text-align:center;margin-bottom:16px}
+    .nav a{display:block;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;margin:6px 6px;transition:.2s}
+    .nav a:hover,.nav a.active{background:rgba(255,255,255,.2)}
+    .main{flex:1;padding:24px;overflow:auto}
+    h1{margin-top:0}
+    .card{background:var(--card);border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:20px;margin-bottom:20px}
+    button{padding:10px 16px;border:none;border-radius:10px;background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff;cursor:pointer;margin-top:6px}
+    input[type=file]{padding:10px;margin-top:8px;width:100%;border:1px solid #ccc;border-radius:10px}
+  </style>
+  <link rel="stylesheet" href="admin-theme.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="user-management.html">User Management</a>
+      <a href="analytics.html">Analytics</a>
+      <a class="active" href="settings.html">Settings</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <h1>System Settings</h1>
+    <p style="color:var(--muted)">Backup, restore, and manage EduCare system configuration.</p>
+
+    <div class="card">
+      <h3>Backup Data</h3>
+      <p>Download the current EduCare dataset as a JSON file.</p>
+      <button id="backupBtn">Download Backup</button>
+    </div>
+
+    <div class="card">
+      <h3>Restore Backup</h3>
+      <p>Upload a previously saved EduCare backup (.json) to restore data.</p>
+      <input type="file" id="restoreInput" accept=".json" />
+      <button id="restoreBtn">Restore Data</button>
+    </div>
+
+    <div class="card">
+      <h3>Appearance</h3>
+      <p>Switch between light and dark themes for the admin interface.</p>
+      <button id="themeBtn">Toggle Theme</button>
+    </div>
+
+    <div class="card">
+      <h3>System Control</h3>
+      <button id="resetBtn" style="background:#ef4444">Reset All Data</button>
+      <button id="logoutBtn" style="background:#6b7280">Logout</button>
+    </div>
+
+    <div class="card">
+      <h3>Model Server Base URL</h3>
+      <p class="muted">If your model API (Flask) runs on a different port than the static server, set its base URL here so Admin can fetch model metadata and saved predictions (default: <code>http://127.0.0.1:5000</code>).</p>
+      <input type="text" id="modelBaseInput" placeholder="http://127.0.0.1:5000" style="padding:8px;border-radius:8px;border:1px solid #e5e7eb;width:100%" />
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <button id="saveModelBase">Save Model Base</button>
+        <button id="testModelBase" style="background:#10b981">Test Connection</button>
+      </div>
+      <div id="modelBaseStatus" style="margin-top:8px;font-size:13px;color:var(--muted)"></div>
+    </div>
+
+    <div class="card">
+      <h3>YouTube Data API Key</h3>
+      <p class="muted">Provide a YouTube Data API v3 key to enable video suggestions on the student Hobbies page. You can also set this from the browser console (window.YOUTUBE_API_KEY) for quick tests.</p>
+      <input type="text" id="ytKeyInput" placeholder="Enter YouTube API key here" style="padding:8px;border-radius:8px;border:1px solid #e5e7eb;width:100%" />
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="saveYtKey">Save API Key</button>
+        <button id="removeYtKey" style="background:#ef4444">Remove Key</button>
+      </div>
+      <div style="margin-top:8px;font-size:13px;color:var(--muted)">Tip: If you restrict the key by HTTP referrer, add your local dev origin (e.g. <code>http://127.0.0.1:5501</code>).</div>
+    </div>
+
+    <div class="card">
+      <h3>Chatbot API Key (optional)</h3>
+      <p class="muted">Provide a chatbot API key (for example an aistudio key) to allow the in-app chatbot to use your key across dashboards. Storing the key here will persist it in the application store and (if Firestore sync is enabled) in your Firestore project. Be aware this exposes the key to any admin users and anyone with access to the store - for production, prefer server-side environment variables.</p>
+      <input type="text" id="chatKeyInput" placeholder="Enter chatbot API key here" style="padding:8px;border-radius:8px;border:1px solid #e5e7eb;width:100%" />
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <button id="saveChatKey">Save Chatbot Key (Save to server)</button>
+        <button id="removeChatKey" style="background:#ef4444">Remove Server Key</button>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+        <input type="text" id="adminApiKeyInput" placeholder="Admin API token (optional for server auth)" style="padding:8px;border-radius:8px;border:1px solid #e5e7eb;width:100%" />
+      </div>
+      <div id="serverKeyStatus" style="margin-top:8px;font-size:13px;color:var(--muted)"></div>
+      <div style="margin-top:8px;font-size:13px;color:var(--muted)">Tip: For a secure production setup, set the key on the server and do NOT store it in the client store. This option is provided for quick in-app testing.</div>
+      <hr style="margin-top:12px;margin-bottom:12px" />
+      <button id="seedChatbotBtn">Seed Chatbot with Project Details</button>
+      <div id="seedStatus" style="margin-top:10px;color:var(--muted);font-size:14px"></div>
+    </div>
+
+    <div class="card" id="migrationCard">
+      <h3>Migrate Local Data → Firebase</h3>
+      <p>Preview and migrate your local EduCare dataset (localStorage) into the configured Firestore project. This operation is idempotent — documents are created/merged by the same IDs. A backup will be downloaded automatically before migration.</p>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <button id="previewMigrationBtn">Preview Migration</button>
+        <button id="migrateBtn" style="background:#10b981">Migrate to Firebase</button>
+      </div>
+      <div id="migrationStatus" style="margin-top:10px;color:var(--muted);font-size:14px"></div>
+      <div id="migrationPreview" style="margin-top:10px;font-size:13px;white-space:pre-wrap;color:var(--text)"></div>
+    </div>
+  </main>
+
+  <script src="admin.js"></script>
+  <script src="admin-theme.js"></script>
+  <script>
+    const backupBtn = document.getElementById('backupBtn');
+    const restoreBtn = document.getElementById('restoreBtn');
+    const restoreInput = document.getElementById('restoreInput');
+    const resetBtn = document.getElementById('resetBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const themeBtn = document.getElementById('themeBtn');
+
+    // --- Backup ---
+    backupBtn.onclick = ()=>{
+      const data = EduCareAdmin.exportBackup();
+      const blob = new Blob([data], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `EduCare_Backup_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    // --- Restore ---
+    restoreBtn.onclick = ()=>{
+      const file = restoreInput.files[0];
+      if(!file){ alert('Please select a JSON backup file first'); return; }
+      const reader = new FileReader();
+      reader.onload = (e)=>{
+        const ok = EduCareAdmin.importBackup(e.target.result);
+        alert(ok ? '✅ Backup restored successfully!' : '❌ Failed to restore backup.');
+        if(ok) location.reload();
+      };
+      reader.readAsText(file);
+    };
+
+    // --- Theme Toggle ---
+    const dark = localStorage.getItem('educare_theme')==='dark';
+    if(dark) document.body.classList.add('dark');
+    themeBtn.onclick = ()=>{
+      document.body.classList.toggle('dark');
+      const nowDark = document.body.classList.contains('dark');
+      localStorage.setItem('educare_theme', nowDark ? 'dark':'light');
+    };
+
+    // --- Reset ---
+    resetBtn.onclick = ()=>{
+      if(confirm('This will erase all data and restore defaults. Continue?')){
+        EduCareAdmin.resetAll();
+        alert('✅ System reset complete');
+        location.reload();
+      }
+    };
+
+    // --- Logout ---
+    logoutBtn.onclick = ()=>{
+      alert('Logging out...');
+      window.location.href = '../index.html';
+    };
+
+    // --- YouTube API Key management ---
+    const ytInput = document.getElementById('ytKeyInput');
+    const saveYtBtn = document.getElementById('saveYtKey');
+    const removeYtBtn = document.getElementById('removeYtKey');
+
+    // populate if key already in store
+    try{
+      const st = EduCareAdmin.getStore();
+      if(st && st.meta && st.meta.youtubeApiKey) ytInput.value = st.meta.youtubeApiKey;
+    }catch(e){ /* ignore */ }
+
+    saveYtBtn && saveYtBtn.addEventListener('click', ()=>{
+      const key = (ytInput.value || '').trim();
+      if(!key) return alert('Please enter a valid API key');
+      try{
+        const s = EduCareAdmin.getStore(); s.meta = s.meta || {}; s.meta.youtubeApiKey = key; EduCareAdmin.setStore(s);
+        alert('YouTube API key saved to system settings (persisted).');
+      }catch(e){ console.error('saveYtKey failed', e); alert('Failed to save key'); }
+    });
+
+    removeYtBtn && removeYtBtn.addEventListener('click', ()=>{
+      if(!confirm('Remove the stored YouTube API key?')) return;
+      try{
+        const s = EduCareAdmin.getStore(); if(s && s.meta){ delete s.meta.youtubeApiKey; EduCareAdmin.setStore(s); }
+        ytInput.value = '';
+        alert('YouTube API key removed from settings.');
+      }catch(e){ console.error('removeYtKey failed', e); alert('Failed to remove key'); }
+    });
+
+    // --- Model Server Base management ---
+    const modelBaseInput = document.getElementById('modelBaseInput');
+    const saveModelBaseBtn = document.getElementById('saveModelBase');
+    const testModelBaseBtn = document.getElementById('testModelBase');
+    const modelBaseStatus = document.getElementById('modelBaseStatus');
+
+    try{
+      const s = EduCareAdmin.getStore(); if(s && s.meta && s.meta.modelApiBase) modelBaseInput.value = s.meta.modelApiBase;
+    }catch(e){ /* ignore */ }
+
+    saveModelBaseBtn && saveModelBaseBtn.addEventListener('click', ()=>{
+      const v = (modelBaseInput.value || '').trim();
+      if(!v) return alert('Please enter a valid URL (e.g. http://127.0.0.1:5000)');
+      try{ const s = EduCareAdmin.getStore(); s.meta = s.meta || {}; s.meta.modelApiBase = v; EduCareAdmin.setStore(s); alert('Model base URL saved.'); }catch(e){ console.error('saveModelBase failed', e); alert('Failed to save model base'); }
+    });
+
+    testModelBaseBtn && testModelBaseBtn.addEventListener('click', async ()=>{
+      const v = (modelBaseInput.value || '').trim();
+      if(!v) return alert('Enter a model base URL to test');
+      modelBaseStatus.textContent = 'Testing connection...';
+      try{
+        const u = v.replace(/\/$/, '') + '/health';
+        const r = await fetch(u);
+        if(r.ok){ modelBaseStatus.textContent = 'OK — model server reachable'; alert('Connection test succeeded'); }
+        else { modelBaseStatus.textContent = 'Server responded: ' + r.status; alert('Connection test failed: '+r.status); }
+      }catch(e){ modelBaseStatus.textContent = 'Failed to reach server: '+String(e); alert('Connection test failed: '+String(e)); }
+    });
+
+    // --- Chatbot API Key management ---
+    const chatInput = document.getElementById('chatKeyInput');
+    const saveChatBtn = document.getElementById('saveChatKey');
+    const removeChatBtn = document.getElementById('removeChatKey');
+    const seedBtn = document.getElementById('seedChatbotBtn');
+    const seedStatus = document.getElementById('seedStatus');
+
+    // check if server has a stored key
+    const adminApiInput = document.getElementById('adminApiKeyInput');
+    async function refreshServerKeyStatus(){
+      try{
+        const s = EduCareAdmin.getStore(); const base = (s && s.meta && s.meta.modelApiBase) ? s.meta.modelApiBase.replace(/\/$/, '') : 'http://127.0.0.1:5000';
+        const res = await fetch(base + '/admin/chat_key_status');
+        if(res && res.ok){ const js = await res.json(); document.getElementById('serverKeyStatus').textContent = js.hasKey ? 'Server has a stored chatbot key' : 'No server-side chatbot key stored'; }
+        else document.getElementById('serverKeyStatus').textContent = 'Could not determine server key status';
+      }catch(e){ document.getElementById('serverKeyStatus').textContent = 'Server key status unavailable'; }
+    }
+    refreshServerKeyStatus();
+
+    saveChatBtn && saveChatBtn.addEventListener('click', async ()=>{
+      const key = (chatInput.value || '').trim();
+      if(!key) return alert('Please enter a valid API key');
+      try{
+        const s = EduCareAdmin.getStore(); const base = (s && s.meta && s.meta.modelApiBase) ? s.meta.modelApiBase.replace(/\/$/, '') : 'http://127.0.0.1:5000';
+        const headers = {'Content-Type':'application/json'};
+        const adminToken = (document.getElementById('adminApiKeyInput')||{}).value || '';
+        if(adminToken) headers['x-admin-api-key'] = adminToken;
+        const res = await fetch(base + '/admin/save_chat_key', { method: 'POST', headers, body: JSON.stringify({ key }) });
+        if(res.ok){ alert('Chatbot key saved on server'); chatInput.value=''; refreshServerKeyStatus(); }
+        else { const t = await res.text().catch(()=>res.status); alert('Failed to save key: '+t); }
+      }catch(e){ console.error('saveChatKey failed', e); alert('Failed to save key'); }
+    });
+
+    removeChatBtn && removeChatBtn.addEventListener('click', async ()=>{
+      if(!confirm('Remove the stored Chatbot API key from the server?')) return;
+      try{
+        const s = EduCareAdmin.getStore(); const base = (s && s.meta && s.meta.modelApiBase) ? s.meta.modelApiBase.replace(/\/$/, '') : 'http://127.0.0.1:5000';
+        const headers = {'Content-Type':'application/json'};
+        const adminToken = (document.getElementById('adminApiKeyInput')||{}).value || '';
+        if(adminToken) headers['x-admin-api-key'] = adminToken;
+        const res = await fetch(base + '/admin/delete_chat_key', { method: 'POST', headers });
+        if(res.ok){ alert('Server-side chat key removed'); refreshServerKeyStatus(); }
+        else { const t = await res.text().catch(()=>res.status); alert('Failed to remove key: '+t); }
+      }catch(e){ console.error('removeChatKey failed', e); alert('Failed to remove key'); }
+    });
+
+    // --- Seed chatbot with project details ---
+    seedBtn && seedBtn.addEventListener('click', async ()=>{
+      if(!confirm('This will save a snapshot of server-side model info and recent predictions into the system settings so the chatbot has project context. Continue?')) return;
+      seedStatus.textContent = 'Seeding project details...';
+      try{
+        const ctx = {};
+        // try fetch model metadata
+        try{
+          const s = EduCareAdmin.getStore();
+          const base = (s && s.meta && s.meta.modelApiBase) ? s.meta.modelApiBase.replace(/\/$/, '') : 'http://127.0.0.1:5000';
+          const mi = await fetch(base + '/model_info');
+          if(mi && mi.ok){ ctx.model_info = await mi.json(); }
+        }catch(e){ console.warn('model_info fetch failed', e); }
+        // try fetch saved predictions as examples
+        try{
+          const s2 = EduCareAdmin.getStore();
+          const base2 = (s2 && s2.meta && s2.meta.modelApiBase) ? s2.meta.modelApiBase.replace(/\/$/, '') : 'http://127.0.0.1:5000';
+          const ps = await fetch(base2 + '/predictions_saved');
+          if(ps && ps.ok){ const pj = await ps.json(); ctx.predictions = pj.predictions || []; }
+        }catch(e){ console.warn('predictions_saved fetch failed', e); }
+
+        // Attach a lightweight project summary (meta from store)
+        try{ const s = EduCareAdmin.getStore(); if(s && s.meta) ctx.systemMeta = s.meta; }catch(e){ }
+
+        const s = EduCareAdmin.getStore(); s.meta = s.meta || {}; s.meta.chatbotContext = ctx; EduCareAdmin.setStore(s);
+        seedStatus.textContent = 'Seeding complete — chatbot context saved to system settings.';
+        alert('Seed complete — chatbot will include project details when you open the assistant.');
+      }catch(e){ console.error('Seeding failed', e); seedStatus.textContent = 'Seeding failed: '+String(e); alert('Seeding failed: '+String(e)); }
+    });
+
+    // --- Migration: localStorage -> Firestore ---
+    const previewBtn = document.getElementById('previewMigrationBtn');
+    const migrateBtn = document.getElementById('migrateBtn');
+    const migrationStatus = document.getElementById('migrationStatus');
+    const migrationPreview = document.getElementById('migrationPreview');
+
+    function formatCounts(store){
+      const out = [];
+      try{
+        if(!store) return 'No local store found.';
+        const users = store.users || {};
+        Object.keys(users).forEach(role => { out.push(`${role}: ${Array.isArray(users[role])? users[role].length : 0}`); });
+        ['sessions','uploads','training_examples'].forEach(col => { const arr = Array.isArray(store[col])? store[col].length : 0; out.push(`${col}: ${arr}`); });
+      }catch(e){ return 'Failed to read store'; }
+      return out.join('\n');
+    }
+
+    previewBtn && previewBtn.addEventListener('click', ()=>{
+      try{
+        const s = EduCareAdmin.getStore();
+        migrationPreview.textContent = formatCounts(s);
+        migrationStatus.textContent = 'Preview generated. Review counts above before migrating.';
+      }catch(e){ console.error('preview failed', e); migrationStatus.textContent = 'Preview failed: '+String(e); }
+    });
+
+    migrateBtn && migrateBtn.addEventListener('click', async ()=>{
+      if(!confirm('This will upload current local data to Firestore. A local backup will be downloaded first. Continue?')) return;
+      // ensure firebase helpers available
+      const fb = window.__EDUCARE_FIREBASE;
+      if(!fb || !fb.db){ alert('Firebase is not initialized. Ensure firebase/firebase-init.js is configured for your project.'); return; }
+
+      try{
+        migrationStatus.textContent = 'Preparing backup...';
+        // backup (download)
+        const data = EduCareAdmin.exportBackup();
+        const blob = new Blob([data], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `EduCare_Backup_before_migrate_${new Date().toISOString().split('T')[0]}.json`; a.click(); URL.revokeObjectURL(url);
+
+        migrationStatus.textContent = 'Starting migration...';
+        const s = EduCareAdmin.getStore();
+        if(!s) { migrationStatus.textContent = 'No local store found; aborting.'; return; }
+
+        // Build collections map similar to the sync adapter
+        const newDataMap = {};
+        if(s.users && typeof s.users === 'object'){
+          Object.keys(s.users).forEach(role => {
+            const arr = Array.isArray(s.users[role]) ? s.users[role] : [];
+            newDataMap[role] = arr.slice();
+          });
+        }
+        ['sessions','uploads','training_examples'].forEach(col => {
+          const arr = Array.isArray(s[col]) ? s[col] : [];
+          if(arr.length) newDataMap[col] = arr.slice();
+        });
+
+        // upsert documents one collection at a time (sequential to make progress clear)
+        for(const col of Object.keys(newDataMap)){
+          migrationStatus.textContent = `Migrating collection ${col}...`;
+          const arr = newDataMap[col] || [];
+          for(let i=0;i<arr.length;i++){
+            const item = arr[i];
+            if(!item) continue;
+            const id = item.id || null;
+            try{
+              if(id){ await fb.setDocById(col, String(id), item); }
+              else { const newId = await fb.addDoc(col, item); /* ignore newId */ }
+            }catch(e){ console.warn('migrate item failed', col, item, e); }
+            migrationPreview.textContent = `Migrated ${col}: ${i+1}/${arr.length}`;
+          }
+        }
+
+        migrationStatus.textContent = 'Migration complete. Verify in the Firebase Console → Firestore Database.';
+        alert('Migration finished — check Firestore Console for collections and docs.');
+      }catch(e){ console.error('Migration failed', e); migrationStatus.textContent = 'Migration failed: '+String(e); alert('Migration failed: '+String(e)); }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduCare | Student • Communication</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="student-theme.css" />
+  <!-- Student grid removed from student pages (was a global student list beside the sidebar) -->
+
+  <style>
+    :root{--gradA:#14b8a6;--gradB:#3b82f6;--bg:#f5f7fb;--card:#fff}
+    *{box-sizing:border-box}
+    body{margin:0;display:flex;min-height:100vh;background:var(--bg);font-family:'Poppins',sans-serif}
+    .sidebar{width:240px;background:linear-gradient(180deg,var(--gradA),var(--gradB));color:#fff;padding:22px 12px;display:flex;flex-direction:column}
+    .brand{font-weight:600;font-size:20px;text-align:center;margin-bottom:16px}
+    .nav a{display:block;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;margin:6px 6px;transition:.2s}
+    .nav a:hover,.nav a.active{background:rgba(255,255,255,.2)}
+    .main{flex:1;display:flex;flex-direction:column}
+    .header{padding:16px;background:#fff;border-bottom:1px solid #e5e7eb;font-weight:600}
+    .messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+    .msg{max-width:70%;padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.4}
+    .from-me{align-self:flex-end;background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff}
+    .from-them{align-self:flex-start;background:#fff;color:#111;border:1px solid #e5e7eb}
+    .sendBox{padding:12px;background:#fff;border-top:1px solid #e5e7eb;display:flex;gap:8px}
+    input{flex:1;padding:10px;border:1px solid #ddd;border-radius:10px}
+    button{padding:10px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff;cursor:pointer}
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">EduCare</div>
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="performance.html">Performance</a>
+      <a href="attendance.html">Attendance</a>
+      <a href="counseling.html">Counseling Reports</a>
+      <a href="hobbies.html">Hobbies</a>
+      <a class="active" href="chat.html">Communication</a>
+      <a href="profile.html">Profile</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="header" id="headerTitle">Chat</div>
+    <div class="messages" id="messages"></div>
+    <div class="sendBox">
+      <input id="msgInput" placeholder="Type a message..." />
+      <button id="sendBtn">Send</button>
+    </div>
+  </main>
+
+  <script type="module" src="../firebase/firebase-init.js"></script>
+  <script src="../firebase/firestore-sync.js"></script>
+  <script src="../admin/admin.js"></script>
+  <script src="student.js"></script>
+  <script src="student-theme.js"></script>
+  <script>
+    const messagesDiv = document.getElementById('messages');
+    const msgInput = document.getElementById('msgInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const headerTitle = document.getElementById('headerTitle');
+
+    function renderChat(){
+      const s = EduCareStudent.getCurrentStudent();
+      if(!s) return;
+      const counselor = EduCareStudent.getLinkedCounselor();
+      if(!counselor){ 
+        messagesDiv.innerHTML = '<p style=\"color:#6b7280\">No counselor assigned yet.</p>'; 
+        return; 
+      }
+      headerTitle.textContent = `Chat with ${counselor.name}`;
+      const thread = EduCareStudent.getChatThread();
+      messagesDiv.innerHTML = thread.map(m=>`<div class='msg ${m.from==='student'?'from-me':'from-them'}'>${m.text}</div>`).join('');
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    sendBtn.onclick = ()=>{
+      const s = EduCareStudent.getCurrentStudent();
+      if(!s) return;
+      const text = msgInput.value.trim();
+      if(!text) return;
+      EduCareStudent.sendMessageToCounselor(text);
+      // Simulated counselor auto-reply
+      setTimeout(()=>{
+        const store = JSON.parse(localStorage.getItem('educare_chat_threads_v1') || '{"threads":{}}');
+        const key = `${s.counselorId}|student|${s.id}`;
+        store.threads[key] = store.threads[key] || [];
+        store.threads[key].push({from:'counselor', text:'Noted, thank you for the update.', at:new Date().toISOString()});
+        localStorage.setItem('educare_chat_threads_v1', JSON.stringify(store));
+        renderChat();
+      }, 1500);
+      msgInput.value='';
+      renderChat();
+    };
+
+    if(EduCareStudent.ensureStudentSelected()) renderChat();
+    else window.addEventListener('student-ready', renderChat,{once:true});
+  </script>
+</body>
+</html>
