@@ -433,8 +433,9 @@
     function renderManageAssignments(){
       const sid = manageSessionSelect.value;
       if(!sid) { manageAssignmentsList.innerHTML = '<div style="color:#6b7280">No session selected</div>'; return; }
-      const s = (EduCareAdmin.getStore().sessions||[]).find(x=>x.id===sid) || { assignments: [], replies: [] };
-      const list = s.assignments || [];
+  const store = EduCareAdmin.getStore() || {};
+  const s = (store.sessions||[]).find(x=>x.id===sid) || { assignments: [], replies: [] };
+  const list = s.assignments || [];
 
       // Build assignments HTML (if any)
       let assignmentsHtml = '';
@@ -461,6 +462,61 @@
           return `<div style="padding:8px;border-top:1px dashed #eef2ff;margin-top:6px"><strong>Reply by ${r.from}</strong> <span style="color:#6b7280;font-size:12px">${new Date(r.at).toLocaleString()}</span><div>${r.text? r.text : ''}</div>${fileLink}</div>`;
         }).join('');
       }
+
+      // Also include any uploads recorded globally that belong to this session
+      try{
+        const uploads = (store.uploads||[]).filter(u => u.sessionId === sid);
+        if(uploads && uploads.length){
+          // merge into assignments area if upload.assignmentId exists, else into session replies
+          uploads.forEach(u => {
+            if(u.assignmentId){
+              // find matching assignment and append a reply-like entry if not already present
+              const ai = (s.assignments||[]).find(a=>a.id===u.assignmentId);
+              if(ai){
+                ai.replies = ai.replies || [];
+                // avoid duplicates by filename
+                if(!ai.replies.find(rr=> rr.file && rr.file.name === u.name)){
+                  ai.replies.push({ from: u.from || 'student', text: u.text || '', at: u.at || u.uploadedAt || new Date().toISOString(), file: { name: u.name, dataUrl: u.dataUrl || '' } });
+                }
+              } else {
+                // if assignment record missing, create a lightweight assignment entry for display
+                s.assignments = s.assignments || [];
+                if(!s.assignments.find(a=>a.id===u.assignmentId)){
+                  s.assignments.push({ id: u.assignmentId, title: u.name, name: u.name, uploadedAt: u.at || u.uploadedAt, replies: [{ from: u.from||'student', text: u.text||'', at: u.at||u.uploadedAt, file: { name: u.name, dataUrl: u.dataUrl||'' } }] });
+                }
+              }
+            } else {
+              // session-level upload -> push into session replies if not already present
+              s.replies = s.replies || [];
+              if(!s.replies.find(rr=> rr.file && rr.file.name === u.name)){
+                s.replies.push({ from: u.from || 'student', text: u.text || '', at: u.at || u.uploadedAt || new Date().toISOString(), file: { name: u.name, dataUrl: u.dataUrl || '' } });
+              }
+            }
+          });
+
+          // rebuild HTML snippets after merging uploads
+          // rebuild assignmentsHtml
+          const updatedList = s.assignments || [];
+          if(updatedList.length){
+            assignmentsHtml = updatedList.map(a=>{
+              const replies = (a.replies||[]).map(r=>{
+                const fileLink = r.file && r.file.dataUrl ? `<div style="margin-top:6px"><a href="${r.file.dataUrl}" download="${r.file.name}">Download reply: ${r.file.name}</a></div>` : '';
+                return `<div style="padding:8px;border-top:1px dashed #eef2ff;margin-top:6px"><strong>Reply by ${r.from}</strong> <span style="color:#6b7280;font-size:12px">${new Date(r.at).toLocaleString()}</span><div>${r.text? r.text : ''}</div>${fileLink}</div>`;
+              }).join('');
+              return `<div style="padding:8px;border-bottom:1px solid #f1f5f9"><strong>${a.title||a.name}</strong><div style="font-size:12px;color:#6b7280">Uploaded: ${new Date(a.uploadedAt).toLocaleString()}</div>${replies}</div>`;
+            }).join('');
+          } else assignmentsHtml = '<div style="color:#6b7280">No assignments</div>';
+
+          // rebuild sessionRepliesHtml
+          const updatedSessionReplies = s.replies || [];
+          if(updatedSessionReplies.length){
+            sessionRepliesHtml = updatedSessionReplies.map(r=>{
+              const fileLink = r.file && r.file.dataUrl ? `<div style="margin-top:6px"><a href="${r.file.dataUrl}" download="${r.file.name}">Download reply: ${r.file.name}</a></div>` : '';
+              return `<div style="padding:8px;border-top:1px dashed #eef2ff;margin-top:6px"><strong>Reply by ${r.from}</strong> <span style="color:#6b7280;font-size:12px">${new Date(r.at).toLocaleString()}</span><div>${r.text? r.text : ''}</div>${fileLink}</div>`;
+            }).join('');
+          } else sessionRepliesHtml = '<div style="color:#6b7280;margin-top:8px">No session replies</div>';
+        }
+      }catch(e){ console.warn('merge uploads into session view failed', e); }
 
       // also show any counselor-uploaded note documents
       const noteDocs = (s.noteDocuments||[]);

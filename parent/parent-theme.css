@@ -22,6 +22,19 @@ body.parent-portal{
   color: var(--text) !important;
 }
 
+/* Animated subtle shifting overlay to make the page background more dynamic */
+body.parent-portal::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.12;background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0));mix-blend-mode:overlay;animation:bgShift 18s linear infinite;
+}
+
+@keyframes bgShift{
+  0%{transform:translateY(0) translateX(0);filter:hue-rotate(0deg)}
+  25%{transform:translateY(-3%) translateX(2%);filter:hue-rotate(20deg)}
+  50%{transform:translateY(-1%) translateX(-2%);filter:hue-rotate(40deg)}
+  75%{transform:translateY(2%) translateX(1%);filter:hue-rotate(20deg)}
+  100%{transform:translateY(0) translateX(0);filter:hue-rotate(0deg)}
+}
+
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:0.001ms !important; transition-duration:0.001ms !important}
@@ -105,6 +118,16 @@ body.parent-portal{margin:0;display:flex;min-height:100vh;background:var(--p-bg)
   z-index:10;
   transition:transform .18s ease,box-shadow .18s ease;
 }
+
+/* Dimmed / decreased-color variant for the sidebar — applied globally across parent pages when needed */
+.sidebar.dimmed{
+  filter:grayscale(0.08) saturate(0.7) brightness(0.86) contrast(0.95);
+  background: linear-gradient(180deg, rgba(43,21,91,0.85), rgba(10,82,82,0.85));
+  box-shadow: 0 10px 28px rgba(2,6,23,0.18);
+}
+
+/* allow subtle auto-dimming on scroll to reduce visual weight while reading content */
+.main.scrolled ~ .sidebar, .sidebar.scrolled{filter:saturate(0.8) brightness(0.9);transition:filter .28s ease}
 /* Ensure main content sits above the decorative orbs */
 .main{position:relative;z-index:1}
 .brand{--border-radius:15px;--border-width:4px;box-sizing:border-box;display:inline-block;position:relative;padding:10px 18px;border-radius:var(--border-radius);background-color:#212121;font-family:'Poppins','Roboto',Arial,'Segoe UI',sans-serif;font-size:18px;font-weight:700;color:#fff;margin-bottom:18px;text-align:center;z-index:2}
@@ -242,6 +265,29 @@ canvas{margin-top:24px;background:#fff;border-radius:16px;box-shadow:0 6px 18px 
   opacity: 1;
   animation-duration: 4s;
 }
+
+/* Tag / badge styles to be vibrant and animated */
+.tag, .badge{display:inline-block;padding:6px 10px;border-radius:999px;font-weight:700;font-size:12px;color:#fff;margin-right:8px;transform:translateZ(0);transition:transform .18s ease,box-shadow .18s ease}
+.tag.pulse{background:linear-gradient(90deg,#ff6bcb,#7c3aed);box-shadow:0 10px 28px rgba(124,58,237,0.12)}
+.tag.rose{background:linear-gradient(90deg,#ff6bcb,#fb7185)}
+.tag.green{background:linear-gradient(90deg,#10b981,#34d399)}
+.tag:hover{transform:translateY(-4px) scale(1.03);box-shadow:0 18px 44px rgba(0,0,0,0.12)}
+
+/* Forms: vibrant inputs with animated focus ring */
+form input[type=text], form input[type=email], form input[type=number], form select, form textarea{
+  border:1px solid rgba(15,23,42,0.06);padding:10px 12px;border-radius:10px;background:linear-gradient(180deg,#fff,#fbfbfd);box-shadow:0 8px 20px rgba(2,6,23,0.04);transition:box-shadow .18s ease,transform .12s ease,border-color .12s ease;position:relative;z-index:1
+}
+form input:focus, form select:focus, form textarea:focus{outline:none;transform:translateY(-2px);box-shadow:0 18px 48px rgba(99,102,241,0.12);border-color:rgba(99,102,241,0.28)}
+
+/* Animated gradient focus ring using pseudo-element */
+form .field{position:relative}
+form .field:after{content:'';position:absolute;left:-6px;right:-6px;top:-6px;bottom:-6px;border-radius:14px;pointer-events:none;opacity:0;transition:opacity .18s ease,transform .28s ease}
+form .field:focus-within:after{opacity:1;transform:translateY(-2px);background:conic-gradient(from 0deg, #ff6bcb, #7c3aed, #06b6d4, #10b981)}
+
+/* Make form labels and small helper tags animate slightly on hover */
+form label{display:block;font-weight:700;color:var(--p-muted);transition:color .14s ease,transform .12s ease}
+form .hint{transition:transform .14s ease,color .14s ease}
+form .field:hover label{transform:translateY(-2px);color:var(--accent)}
 
 /* Respect user's reduced motion preference */
 @media (prefers-reduced-motion: reduce){

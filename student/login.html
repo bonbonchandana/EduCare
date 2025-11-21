@@ -28,7 +28,10 @@
       <h2>Student Login</h2>
   <p class="muted">Sign in with your email and password (or enter PIN as fallback).</p>
   <input id="idOrPin" placeholder="Email or PIN" />
-  <input id="password" placeholder="Password (if using email)" type="password" />
+  <div style="display:flex;gap:8px;margin:8px 0">
+    <input id="password" placeholder="Password (if using email)" type="password" style="flex:1;padding:12px;border:1px solid #e6edf3;border-radius:10px" />
+    <button type="button" onclick="togglePassword('password')" style="padding:6px 10px;border:1px solid #e6edf3;border-radius:6px;background:#f9fafb;cursor:pointer;font-size:12px">Show</button>
+  </div>
   <button id="login">Sign in</button>
       <div id="msg" style="margin-top:12px;color:#dc2626"></div>
       <p style="margin-top:12px;font-size:13px">If you don't have credentials, ask your administrator to create a profile.</p>
@@ -41,6 +44,18 @@
   <script src="../firebase/firestore-sync.js"></script>
   <script src="../admin/admin.js"></script>
   <script>
+    function togglePassword(id){
+      const input = document.getElementById(id);
+      const btn = input.nextElementSibling;
+      if(input.type === 'password'){
+        input.type = 'text';
+        btn.textContent = 'Hide';
+      } else {
+        input.type = 'password';
+        btn.textContent = 'Show';
+      }
+    }
+
     document.getElementById('login').onclick = function(){
       const idOrPin = (document.getElementById('idOrPin').value || '').trim();
       const password = (document.getElementById('password').value || '').trim();

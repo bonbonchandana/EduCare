@@ -29,6 +29,30 @@
   }
 })();
 
+/* Sidebar dimming behavior: reduce visual weight on scroll, restore on hover */
+(function(){
+  const sidebar = document.querySelector('.sidebar');
+  if(!sidebar) return;
+  // apply a subtle dim by default across parent pages (reduces saturation/weight)
+  sidebar.classList.add('dimmed');
+  let last = 0;
+  function checkScroll(){
+    const pos = window.scrollY || document.documentElement.scrollTop || 0;
+    if(pos > 80){ sidebar.classList.add('dimmed'); sidebar.classList.add('scrolled'); }
+    else { sidebar.classList.remove('scrolled'); sidebar.classList.remove('dimmed'); }
+    last = pos;
+  }
+  // run on load and on scroll
+  checkScroll();
+  window.addEventListener('scroll', throttle(checkScroll, 120));
+  // remove dim on hover to let users focus on nav when they need it
+  sidebar.addEventListener('mouseenter', ()=> sidebar.classList.remove('dimmed'));
+  sidebar.addEventListener('mouseleave', ()=> { if((window.scrollY||0) > 80) sidebar.classList.add('dimmed'); });
+
+  // tiny throttle helper
+  function throttle(fn, wait){ let t = null; return function(){ if(t) return; t = setTimeout(()=>{ t=null; fn(); }, wait); } }
+})();
+
 /* Notifications UI initializer (shared across parent pages) */
 (function(){
   function createPanelIfMissing(){

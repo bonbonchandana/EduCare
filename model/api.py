@@ -19,15 +19,10 @@ import base64
 from typing import Optional
 from math import ceil
 
-# Optional: server-side Firestore (firebase-admin). If a service account
-# JSON is placed at ../firebase/serviceAccountKey.json the API will write
-# predicted student records to Firestore.
-try:
-    import firebase_admin
-    from firebase_admin import credentials, firestore
-    FIREBASE_AVAILABLE = True
-except Exception:
-    FIREBASE_AVAILABLE = False
+# Optional: server-side Firestore (firebase-admin). We import firebase-admin
+# lazily below only when a service account file exists to avoid heavy or
+# broken imports on startup in environments that don't have the SDK.
+FIREBASE_AVAILABLE = False
 
 LOG = logging.getLogger('educare_api')
 LOG.setLevel(logging.INFO)
@@ -40,14 +35,27 @@ META_PATH = MODEL_DIR / 'feature_columns.json'
 # Look for a service account file relative to the repo root
 SERVICE_ACCOUNT = Path(APP_ROOT.parent, 'firebase', 'serviceAccountKey.json')
 fs_client = None
-if FIREBASE_AVAILABLE and SERVICE_ACCOUNT.exists():
+# If a service account JSON is present AND the admin explicitly enables
+# Firestore via EDUCARE_ENABLE_FIRESTORE, attempt to import and initialize
+# firebase_admin. This avoids accidental heavy imports when the user is
+# running a local-only prototype.
+if SERVICE_ACCOUNT.exists() and os.environ.get('EDUCARE_ENABLE_FIRESTORE', '').lower() in ('1','true','yes'):
     try:
-        cred = credentials.Certificate(str(SERVICE_ACCOUNT))
-        firebase_admin.initialize_app(cred)
-        fs_client = firestore.client()
-        LOG.info('Initialized firebase-admin with %s', SERVICE_ACCOUNT)
+        import firebase_admin
+        from firebase_admin import credentials, firestore
+        FIREBASE_AVAILABLE = True
+        try:
+            cred = credentials.Certificate(str(SERVICE_ACCOUNT))
+            firebase_admin.initialize_app(cred)
+            fs_client = firestore.client()
+            LOG.info('Initialized firebase-admin with %s', SERVICE_ACCOUNT)
+        except Exception as e:
+            LOG.warning('Failed to initialize firebase-admin: %s', e)
+            fs_client = None
     except Exception as e:
-        LOG.warning('Failed to initialize firebase-admin: %s', e)
+        # Could not import firebase_admin (not installed or import-time error).
+        LOG.warning('firebase_admin import failed or not installed: %s', e)
+        FIREBASE_AVAILABLE = False
         fs_client = None
 
 app = Flask(__name__)

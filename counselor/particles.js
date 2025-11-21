@@ -1,4 +1,4 @@
-// Lightweight particle background for a container
+z// Lightweight particle background for a container
 (function(global){
   function initParticles(containerId, opts){
     opts = Object.assign({count: 28, colorA:'#7b2ff7', colorB:'#0ea5e9', sizeMin:3, sizeMax:10, speed:0.3}, opts||{});

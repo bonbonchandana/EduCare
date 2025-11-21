@@ -159,6 +159,8 @@
           const dataUrl = e.target.result;
           const r = { from: 'student', text: text||'', at: new Date().toISOString(), file: { name: file.name, dataUrl } };
           pushReply(r);
+          // record upload metadata globally so other pages/tabs can also discover the file
+          try{ EduCareAdmin.recordUpload({ sessionId, assignmentId, name: file.name, dataUrl, uploadedAt: new Date().toISOString(), from: 'student' }); }catch(e){/* ignore */}
           notifyAfterReply(r);
         };
         reader.readAsDataURL(file);
@@ -435,6 +437,7 @@
           const dataUrl = e.target.result;
           const r = { from: 'student', text: text||'', at: new Date().toISOString(), file: { name: file.name, dataUrl } };
           pushAndNotify(r);
+          try{ EduCareAdmin.recordUpload({ sessionId, name: file.name, dataUrl, uploadedAt: new Date().toISOString(), from: 'student' }); }catch(e){/* ignore */}
         };
         reader.readAsDataURL(file);
       } else {

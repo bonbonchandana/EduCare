@@ -104,6 +104,7 @@
       <button class="btn" id="addBtn">+ Add</button>
       <button class="btn" id="bulkUploadBtn">Bulk Upload</button>
       <button class="btn" id="aimlBtn">Train & Predict (AIML)</button>
+      <button class="btn secondary" id="exportAllPredBtn" style="margin-left:8px">Export Predictions</button>
       <button class="btn secondary" id="resetRisksBtn" style="margin-left:6px;background:#ef4444;color:#fff">Reset All Risks</button>
       <input id="search" class="search" placeholder="Search by name/email/PIN" />
       <button class="btn secondary" id="refreshBtn">Refresh</button>
@@ -161,11 +162,13 @@
       </div>
       <div id="apiTestResult" style="margin-top:8px;color:#6b7280;font-size:13px"></div>
       <div style="margin-top:12px">
-  <button type="button" class="btn" id="startTrainBtn">Train Model (Local)</button>
+  <!-- Simplified: single automated Predict button. Other controls remain hidden but available for advanced use. -->
+  <button type="button" class="btn" id="autoPredictBtn">Predict (Auto)</button>
+  <button type="button" class="btn" id="startTrainBtn" style="display:none">Train Model (Local)</button>
   <button type="button" class="btn secondary" id="runPredictBtn" style="margin-left:8px;display:none">Run Prediction (Local)</button>
-  <button type="button" class="btn secondary" id="trainServerBtn" style="margin-left:8px">Train on Server</button>
-  <button type="button" class="btn" id="serverPredictBtn" style="margin-left:8px">Use Server Model</button>
-  <button type="button" class="btn" id="exportPredictionsBtn" style="margin-left:8px;">Export CSV</button>
+  <button type="button" class="btn secondary" id="trainServerBtn" style="margin-left:8px;display:none">Train on Server</button>
+  <button type="button" class="btn" id="serverPredictBtn" style="margin-left:8px;display:none">Use Server Model</button>
+  <button type="button" class="btn" id="exportPredictionsBtn" style="margin-left:8px;display:inline-block;">Export CSV</button>
   <button type="button" class="btn" id="closeAIMLBtn" style="margin-left:8px">Close</button>
       </div>
       <div id="aimlResults" style="margin-top:12px;max-height:300px;overflow:auto"></div>
@@ -213,6 +216,7 @@
         { key:'department', label:'Department' },
         { key:'attendance', label:'Attendance %' },
         { key:'cgpa', label:'CGPA' },
+        { key:'improvement', label:'Improvement' },
         { key:'risk', label:'Risk' },
         { key:'parentId', label:'Parent' },
         { key:'counselorId', label:'Counselor' },
@@ -268,6 +272,7 @@
               return `<td>${(typeof p==='number') ? (p*100).toFixed(1)+'%' : '-'}</td>`;
             }
             if (c.key==='risk') return `<td>${chipRisk(item.risk)}</td>`;
+            if (c.key==='improvement') return `<td>${(typeof item.improvement === 'number') ? item.improvement.toFixed(2) : '-'}</td>`;
             if (c.key==='parentId'){const p = EduCareAdmin.getById('parents', item.parentId||''); return `<td>${p? p.name : '-'}</td>`}
             if (c.key==='counselorId'){const co = EduCareAdmin.getById('counselors', item.counselorId||''); return `<td>${co? co.name : '-'}</td>`}
           }
@@ -379,7 +384,7 @@
         const reader = new FileReader();
         reader.onload = e=>{
           const wb = XLSX.read(e.target.result, {type:'binary'});
-          const sheet = wb.Sheets[wb.SheetNames[0]];
+           const sheet = wb.Sheets[wb.SheetNames[0]];
           uploadRows = XLSX.utils.sheet_to_json(sheet);
           renderUploadPreview();
         };
@@ -436,9 +441,12 @@
       if(!student && name) student = students.find(s=> (s.name||'').toLowerCase() === name.toLowerCase());
 
       if(student){
-        EduCareAdmin.update('students', student.id, { name, pin, email: email||student.email, mobile: mobile||student.mobile, branch: branch||student.branch, department: department||student.department, cgpa: cgpa===null? student.cgpa : cgpa, stress: stress===null? student.stress : stress, attendance: attendance===null? student.attendance : attendance, gender: gender||student.gender, password: password||student.password, risk: null });
+        const newCgpa = cgpa === null ? student.cgpa : cgpa;
+        const newAttendance = attendance === null ? student.attendance : attendance;
+        const improvement = (newCgpa - (student.prevCgpa || student.cgpa || 0)) + (newAttendance - (student.prevAttendance || student.attendance || 0));
+        EduCareAdmin.update('students', student.id, { name, pin, email: email||student.email, mobile: mobile||student.mobile, branch: branch||student.branch, department: department||student.department, cgpa: newCgpa, stress: stress===null? student.stress : stress, attendance: newAttendance, gender: gender||student.gender, password: password||student.password, risk: null, improvement, prevCgpa: newCgpa, prevAttendance: newAttendance });
       } else {
-        student = EduCareAdmin.create('students', { name, pin, email, mobile, branch, department, cgpa, stress, attendance, gender, password, risk: null });
+        student = EduCareAdmin.create('students', { name, pin, email, mobile, branch, department, cgpa, stress, attendance, gender, password, risk: null, improvement: 0, prevCgpa: cgpa, prevAttendance: attendance });
       }
 
       // upsert parent
@@ -485,6 +493,11 @@
   // refresh main table
   render();
   setModalOpen($uploadModal, false);
+      // After import, automatically trigger the single-button automated prediction flow
+      // (safe no-op if the button or handler is not present yet)
+      try{
+        setTimeout(()=>{ const btn = document.getElementById('autoPredictBtn'); if(btn) btn.click(); }, 250);
+      }catch(e){ console.warn('auto-predict trigger failed', e); }
     });
 
     // Modal logic
@@ -565,6 +578,21 @@
     function inputField(key,label,type='text',value=''){
       return `<div class="field"><label>${label}</label><input id="f_${key}" type="${type}" value="${value??''}" /></div>`;
     }
+    function passwordField(key,label,value=''){
+      const id = `f_${key}`;
+      return `<div class="field"><label>${label}</label><div style="display:flex;gap:8px"><input id="${id}" type="password" value="${value??''}" style="flex:1" /><button type="button" onclick="togglePassword('${id}')" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#f9fafb;cursor:pointer;font-size:12px">Show</button></div></div>`;
+    }
+    function togglePassword(id){
+      const input = document.getElementById(id);
+      const btn = input.nextElementSibling;
+      if(input.type === 'password'){
+        input.type = 'text';
+        btn.textContent = 'Hide';
+      } else {
+        input.type = 'password';
+        btn.textContent = 'Show';
+      }
+    }
     function radioField(key,label,items,value=''){
       const radios = items.map(i=>{
         const id = `f_${key}_${i.value}`;
@@ -601,12 +629,14 @@
           inputField('pin','PIN','text',data.pin),
           inputField('mobile','Mobile','tel',data.mobile),
           inputField('email','Email','email',data.email),
-          inputField('password','Password','password',data.password || ''),
+          passwordField('password','Password',data.password || ''),
           selectField('department','Department',departments,data.department||''),
           selectField('branch','Branch',branches,data.branch||''),
           radioField('gender','Gender',[{label:'Male',value:'male'},{label:'Female',value:'female'},{label:'Other',value:'other'}],data.gender||'male'),
           inputField('attendance','Attendance %','number',data.attendance),
           inputField('cgpa','CGPA','number',data.cgpa),
+          `<input type="hidden" id="f_prevCgpa" value="${sessionStorage.getItem('prevCgpa_' + data.id) || data.prevCgpa || data.cgpa || 0}" />`,
+          `<input type="hidden" id="f_prevAttendance" value="${sessionStorage.getItem('prevAttendance_' + data.id) || data.prevAttendance || data.attendance || 0}" />`,
           selectField('stress','Stress (1-10)',Array.from({length:10},(_,i)=>({label:String(i+1),value:i+1})),data.stress||1)
         ].join('');
         // Linkers
@@ -627,7 +657,7 @@
             <div class="grid">
               <div class="field"><label>Parent Name</label><input id="f_parent_name" type="text" value="${parentDetails.name||''}" /></div>
               <div class="field"><label>Parent Email</label><input id="f_parent_email" type="email" value="${parentDetails.email||''}" /></div>
-              <div class="field"><label>Parent Password</label><input id="f_parent_password" type="password" value="${parentDetails.password||''}" /></div>
+              <div class="field"><label>Parent Password</label><div style="display:flex;gap:8px"><input id="f_parent_password" type="password" value="${parentDetails.password||''}" style="flex:1" /><button type="button" onclick="togglePassword('f_parent_password')" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#f9fafb;cursor:pointer;font-size:12px">Show</button></div></div>
               <div class="field"><label>Parent Mobile</label><input id="f_parent_mobile" type="tel" value="${parentDetails.mobile||''}" /></div>
             </div>
             <div style="font-size:12px;color:#6b7280;margin-top:8px">Fill these fields to create or update the student's parent; leave all parent fields empty to unlink any previously linked parent.</div>
@@ -638,7 +668,7 @@
           $formGrid.innerHTML = [
             inputField('name','Name','text',data.name),
             inputField('email','Email','email',data.email),
-            inputField('password','Password','password',data.password || ''),
+            passwordField('password','Password',data.password || ''),
             inputField('specializations','Specializations (comma separated)','text',(Array.isArray(data.specializations)? data.specializations.join(', '): (data.specializations||''))),
             inputField('qualifications','Qualifications','text',data.qualifications||''),
             inputField('experience','Experience (years)','number',data.experience||'')
@@ -648,7 +678,7 @@
         $formGrid.innerHTML = [
             inputField('name','Name','text',data.name),
             inputField('email','Email','email',data.email),
-            inputField('password','Password','password',data.password || '')
+            passwordField('password','Password',data.password || '')
         ].join('');
       }
     }
@@ -676,6 +706,13 @@
           gender: val('gender'), branch: val('branch'), department: val('department'),
           attendance: num('attendance'), cgpa: num('cgpa'), stress: Number(val('stress'))
         };
+        // calculate improvement
+        const prevCgpa = num('prevCgpa') || payload.cgpa;
+        const prevAttendance = num('prevAttendance') || payload.attendance;
+        const improvement = (payload.cgpa - prevCgpa) + (payload.attendance - prevAttendance);
+        payload.improvement = improvement;
+        payload.prevCgpa = payload.cgpa;
+        payload.prevAttendance = payload.attendance;
         // compute risk on save
         payload.risk = EduCareAdmin.computeRisk({ attendance: payload.attendance, cgpa: payload.cgpa, stress: payload.stress });
 
@@ -718,6 +755,21 @@
         }
 
         if (counselorId) EduCareAdmin.assignCounselor(id, counselorId);
+
+        // auto-predict if model exists
+        const model = loadModelFromStorage();
+        if (model) {
+          const updatedStudent = EduCareAdmin.getById('students', id) || payload;
+          const prob = predictForStudent(model, updatedStudent);
+          const highThresh = model && model.thresholds && typeof model.thresholds.high !== 'undefined' ? Number(model.thresholds.high) : Number(localStorage.getItem('educare_high_threshold') || 0.6);
+          const medThresh = model && model.thresholds && typeof model.thresholds.med !== 'undefined' ? Number(model.thresholds.med) : Number(localStorage.getItem('educare_med_threshold') || 0.35);
+          const risk = prob >= highThresh ? 'High' : (prob >= medThresh ? 'Medium' : 'Low');
+          EduCareAdmin.update('students', id, { risk, dropoutProb: prob });
+        }
+
+        // store current values in sessionStorage for next session
+        sessionStorage.setItem('prevCgpa_' + id, payload.cgpa);
+        sessionStorage.setItem('prevAttendance_' + id, payload.attendance);
       }
       
       // parents management removed from User Management UI; parent linking still occurs inline from student modal
@@ -738,7 +790,6 @@
           if (id) EduCareAdmin.update('admins', id, payload); else id = EduCareAdmin.create('admins', payload).id;
         }
 
-  setModalOpen($modal, false);
   render();
     }
 
@@ -768,7 +819,7 @@
 
     function sigmoid(z){ return 1/(1+Math.exp(-z)); }
 
-    // Collect training data from store. Features: attendance (0-100), cgpa (0-10), stress (1-10)
+    // Collect training data from store. Features: attendance (0-100), cgpa (0-10), stress (1-10), improvement (cgpa change)
     function collectTrainingData(){
       const students = EduCareAdmin.list('students') || [];
       const X = [];
@@ -777,7 +828,7 @@
       const persisted = loadTrainingExamples();
       if(persisted && persisted.length){
         persisted.forEach(e=>{
-          X.push([Number(e.attendance||0)/100, Number(e.cgpa||0)/10, Number(e.stress||0)/10]);
+          X.push([Number(e.attendance||0)/100, Number(e.cgpa||0)/10, Number(e.stress||0)/10, Number(e.improvement||0)]);
           y.push(Number(e.label));
         });
       }
@@ -785,6 +836,7 @@
         const att = Number(s.attendance) || 0;
         const cg = Number(s.cgpa) || 0;
         const st = Number(s.stress) || 0;
+        const imp = Number(s.improvement) || 0;
         // determine label: prefer explicit dropout flag fields, otherwise map risk->label
         let label = null;
         if (typeof s.dropped !== 'undefined') label = s.dropped ? 1 : 0;
@@ -796,7 +848,7 @@
           label = (rl === 'high' || rl === 'medium') ? 1 : 0;
         }
         if (label===null) return; // skip rows without label
-        X.push([att/100, cg/10, st/10]);
+        X.push([att/100, cg/10, st/10, imp]);
         y.push(label);
       });
       return { X, y };
@@ -818,70 +870,119 @@
       }catch(e){ return false; }
     }
 
-    // Trains a logistic regression with gradient descent. Returns {weights: [w0,w1,w2], bias}
-    // Improved local logistic trainer using shuffled mini-batch SGD and L2 regularization
-    function trainLogistic(X, y, {lr=0.1, epochs=1000, l2=0.01, batchSize=16} = {}){
+    // Trains a logistic regression with gradient descent on standardized features.
+    // Performs a tiny grid-search with cross-validation (when enough examples) and
+    // returns a model object {weights, bias, scaler:{mean,std}, thresholds:{high,med}}
+    function trainLogistic(X, y, {lr=0.1, epochs=800, l2=0.01, batchSize=16, doCV=true} = {}){
       const m = X.length;
       if (m===0) return null;
-      // initialize weights and bias
-      let w = [0,0,0];
-      let b = 0;
 
-  // inputs from collectTrainingData are already normalized to [0..1]
-  // (attendance 0-100 -> 0-1, cgpa 0-10 -> 0-1, stress 1-10 -> 0-1).
-  // Avoid double-normalizing here; simply coerce to numbers and use as-is.
-  const Xnorm = X.map(row => [ Number(row[0]||0), Number(row[1]||0), Number(row[2]||0) ]);
+      // convert to numeric and compute feature-wise mean/std for standardization
+      const Xnum = X.map(r => [Number(r[0]||0), Number(r[1]||0), Number(r[2]||0), Number(r[3]||0)]);
+      const mean = [0,0,0,0]; const std = [0,0,0,0];
+      for(let j=0;j<4;j++){ mean[j] = Xnum.reduce((s,row)=>s+row[j],0)/m; std[j] = Math.sqrt(Math.max(1e-8, Xnum.reduce((s,row)=>s+Math.pow(row[j]-mean[j],2),0)/m)); }
+      const Xs = Xnum.map(row => row.map((v,j)=> (v - mean[j]) / (std[j] || 1)));
 
-      // helper: perform one gradient step on a batch
-      function step(batchIdxs){
-        const n = batchIdxs.length;
-        const grad = [0,0,0];
-        let db = 0;
-        for(const i of batchIdxs){
-          const xi = Xnorm[i];
-          const z = w[0]*xi[0] + w[1]*xi[1] + w[2]*xi[2] + b;
-          const p = sigmoid(z);
-          const err = p - y[i];
-          grad[0] += err * xi[0]; grad[1] += err * xi[1]; grad[2] += err * xi[2];
-          db += err;
+      // helper: sigmoid on z
+      function sigmoidZ(z){ return 1/(1+Math.exp(-z)); }
+
+      // helper: train on provided indices, return weights,bias
+      function trainOn(trainIdxs, opts){
+        let w = [0,0,0,0]; let b = 0; let lrLocal = opts.lr; const l2Local = opts.l2; const bs = opts.batchSize;
+        const nTrain = trainIdxs.length;
+        function step(batchIdxs){
+          const n = batchIdxs.length; const grad = [0,0,0,0]; let db = 0;
+          for(const ii of batchIdxs){ const xi = Xs[ii]; const z = w[0]*xi[0] + w[1]*xi[1] + w[2]*xi[2] + w[3]*xi[3] + b; const p = sigmoidZ(z); const err = p - y[ii]; grad[0]+=err*xi[0]; grad[1]+=err*xi[1]; grad[2]+=err*xi[2]; grad[3]+=err*xi[3]; db += err; }
+          for(let j=0;j<4;j++){ w[j] = w[j] - lrLocal * (grad[j]/n + l2Local * w[j]); }
+          b = b - lrLocal * (db/n);
         }
-        // apply average gradient with L2 regularization
-        for(let j=0;j<3;j++){
-          w[j] = w[j] - lr * (grad[j]/n + l2 * w[j]);
+        for(let ep=0; ep<opts.epochs; ep++){
+          const idx = trainIdxs.slice(); for(let i=idx.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); const t=idx[i]; idx[i]=idx[j]; idx[j]=t; }
+          for(let i=0;i<idx.length;i+=bs){ step(idx.slice(i,i+bs)); }
+          if((ep+1) % 200 === 0) lrLocal *= 0.9;
         }
-        b = b - lr * (db/n);
+        return {weights:w, bias:b};
       }
 
-      // training loop
-      for(let ep=0; ep<epochs; ep++){
-        // create shuffled index array
-        const idx = Array.from({length:m}, (_,i)=>i);
-        for(let i=m-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); const t=idx[i]; idx[i]=idx[j]; idx[j]=t; }
-        // mini-batches
-        for(let i=0;i<m;i+=batchSize){
-          const batchIdxs = idx.slice(i, i+batchSize);
-          step(batchIdxs);
-        }
-        // gentle lr decay every 200 epochs
-        if((ep+1) % 200 === 0) lr *= 0.9;
+      // scoring helpers: compute probs for indices and AUC
+      function probsFor(w,b, idxs){ return idxs.map(i=>{ const xi = Xs[i]; const z = w[0]*xi[0] + w[1]*xi[1] + w[2]*xi[2] + w[3]*xi[3] + b; return sigmoidZ(z); }); }
+      function aucFromProbs(probs, idxs){
+        // simple ROC AUC via sort and trapezoid
+        const pairs = idxs.map((i, k)=>({p:probs[k], label: y[i]})).sort((a,b)=>b.p - a.p);
+        let tp=0, fp=0; const P = pairs.reduce((s,p)=>s+(p.label?1:0),0); const N = pairs.length - P; if(P===0 || N===0) return 0.5;
+        const tprs = [], fprs = [];
+        for(const pair of pairs){ if(pair.label) tp++; else fp++; tprs.push(tp/P); fprs.push(fp/N); }
+        // integrate trapezoid
+        let auc = 0; let prevX=0, prevY=0; for(let i=0;i<tprs.length;i++){ const x = fprs[i], yv = tprs[i]; auc += (x - prevX)*(yv + prevY)/2; prevX = x; prevY = yv; }
+        return auc;
       }
-      return { weights: w, bias: b };
+
+      // if small dataset or doCV=false, train on all data and return
+      if(!doCV || m < 6){
+        const trained = trainOn(Array.from({length:m},(_,i)=>i), {lr, epochs, l2, batchSize});
+        // determine threshold by Youden's J on training set
+        const p = probsFor(trained.weights, trained.bias, Array.from({length:m},(_,i)=>i));
+        let bestT = 0.5, bestJ = -1;
+        for(let t=0; t<=1; t+=0.01){ let tp=0, fn=0, tn=0, fp=0; for(let i=0;i<m;i++){ const pred = (p[i]>=t)?1:0; if(y[i]===1 && pred===1) tp++; if(y[i]===1 && pred===0) fn++; if(y[i]===0 && pred===0) tn++; if(y[i]===0 && pred===1) fp++; } const sens = tp/(tp+fn||1); const spec = tn/(tn+fp||1); const J = sens + spec - 1; if(J>bestJ){ bestJ = J; bestT = t; } }
+        const thresholds = { high: bestT, med: Math.max(0.25, bestT*0.6) };
+        return { weights: trained.weights, bias: trained.bias, scaler:{ mean, std }, thresholds };
+      }
+
+      // otherwise do small grid search with 3-fold CV
+      const folds = 3; const idxs = Array.from({length:m},(_,i)=>i);
+      // build fold assignments
+      const foldIdxs = Array.from({length:folds},()=>[]);
+      for(let i=0;i<idxs.length;i++) foldIdxs[i % folds].push(idxs[i]);
+      const grid = [ {lr:0.1, epochs:epochs, l2:0.01}, {lr:0.05, epochs:epochs, l2:0.01}, {lr:0.1, epochs:Math.max(200,epochs/2), l2:0.0} ];
+      let best = null;
+      for(const g of grid){
+        const aucs = [];
+        for(let f=0; f<folds; f++){
+          const val = foldIdxs[f]; const train = foldIdxs.reduce((arr,fi,idx)=> idx===f? arr : arr.concat(fi), []);
+          const tmodel = trainOn(train, {lr:g.lr, epochs:g.epochs, l2:g.l2, batchSize});
+          const p = probsFor(tmodel.weights, tmodel.bias, val);
+          const a = aucFromProbs(p, val);
+          aucs.push(a);
+        }
+        const avg = aucs.reduce((s,v)=>s+v,0)/aucs.length;
+        if(!best || avg > best.score) best = { score: avg, params: g };
+      }
+
+      // train final model on all data with best params
+      const finalParams = best.params || { lr, epochs, l2 };
+      const final = trainOn(Array.from({length:m},(_,i)=>i), { lr: finalParams.lr, epochs: finalParams.epochs, l2: finalParams.l2, batchSize });
+      const pAll = probsFor(final.weights, final.bias, Array.from({length:m},(_,i)=>i));
+      // determine threshold via Youden's J on all data
+      let bestT = 0.5, bestJ = -1;
+      for(let t=0; t<=1; t+=0.01){ let tp=0, fn=0, tn=0, fp=0; for(let i=0;i<m;i++){ const pred = (pAll[i]>=t)?1:0; if(y[i]===1 && pred===1) tp++; if(y[i]===1 && pred===0) fn++; if(y[i]===0 && pred===0) tn++; if(y[i]===0 && pred===1) fp++; } const sens = tp/(tp+fn||1); const spec = tn/(tn+fp||1); const J = sens + spec - 1; if(J>bestJ){ bestJ = J; bestT = t; } }
+      const thresholds = { high: bestT, med: Math.max(0.25, bestT*0.6) };
+      return { weights: final.weights, bias: final.bias, scaler:{ mean, std }, thresholds };
     }
 
     function saveModelToStorage(model){
-      try{ localStorage.setItem('educare_aiml_model', JSON.stringify(model)); }catch(e){}
+      try{
+        // also persist preferred thresholds for UI compatibility
+        if(model && model.thresholds){ localStorage.setItem('educare_high_threshold', String(model.thresholds.high)); localStorage.setItem('educare_med_threshold', String(model.thresholds.med)); }
+        localStorage.setItem('educare_aiml_model', JSON.stringify(model));
+      }catch(e){}
     }
     function loadModelFromStorage(){
       try{ const s = localStorage.getItem('educare_aiml_model'); return s ? JSON.parse(s) : null; }catch(e){ return null; }
     }
 
     function predictForStudent(model, s){
-      const att = Number(s.attendance) || 0; const cg = Number(s.cgpa) || 0; const st = Number(s.stress) || 0;
-      const x = [att/100, cg/10, st/10];
-      // coerce weights/bias to numbers (handle stored strings)
-      const w = (model && model.weights && Array.isArray(model.weights)) ? model.weights.map(n=>Number(n)||0) : [0,0,0];
+      const att = Number(s.attendance) || 0; const cg = Number(s.cgpa) || 0; const st = Number(s.stress) || 0; const imp = Number(s.improvement) || 0;
+      const xRaw = [att, cg, st, imp];
+      // if model contains scaler, standardize accordingly; otherwise fallback to old scaling
+      let x;
+      if(model && model.scaler && model.scaler.mean && model.scaler.std){
+        x = xRaw.map((v,i)=> (Number(v||0) - Number(model.scaler.mean[i]||0)) / (Number(model.scaler.std[i]||1) || 1));
+      } else {
+        x = [ (xRaw[0]/100), (xRaw[1]/10), (xRaw[2]/10), xRaw[3] ];
+      }
+      const w = (model && model.weights && Array.isArray(model.weights)) ? model.weights.map(n=>Number(n)||0) : [0,0,0,0];
       const b = Number(model && model.bias ? model.bias : 0) || 0;
-      const z = (w[0]||0)*x[0] + (w[1]||0)*x[1] + (w[2]||0)*x[2] + b;
+      const z = (w[0]||0)*x[0] + (w[1]||0)*x[1] + (w[2]||0)*x[2] + (w[3]||0)*x[3] + b;
       return sigmoid(z);
     }
 
@@ -984,14 +1085,18 @@
       if (!X.length){ aimlStatus.textContent = 'No labeled training data found. Provide dropout labels or ensure some students have `risk` set.'; return; }
       aimlStatus.textContent = `Training on ${X.length} labeled students...`;
       setTimeout(()=>{
-        // use a moderate learning rate and more epochs for small datasets
-        const model = trainLogistic(X,y,{lr:0.3,epochs:1000});
+        // use a moderate learning rate and epochs; do CV when dataset allows
+        const model = trainLogistic(X,y,{lr:0.2,epochs:800});
         if(!model){ aimlStatus.textContent = 'Training failed'; return; }
         saveModelToStorage(model);
         aimlStatus.textContent = 'Training complete. Model saved to localStorage.';
         runPredictBtn.style.display = 'inline-block';
-        // show a quick summary of weights
-        aimlResults.innerHTML = `<div style="font-size:13px">Model weights: [${model.weights.map(w=>w.toFixed(3)).join(', ')}, bias: ${model.bias.toFixed(3)}]</div>`;
+        // show a quick summary of weights and thresholds
+        const wSummary = model.weights && Array.isArray(model.weights) ? model.weights.map(w=>Number(w).toFixed(3)).join(', ') : 'n/a';
+        const bias = Number(model.bias||0).toFixed(3);
+        const highT = model.thresholds && model.thresholds.high ? Number(model.thresholds.high).toFixed(3) : (localStorage.getItem('educare_high_threshold') || '0.6');
+        const medT = model.thresholds && model.thresholds.med ? Number(model.thresholds.med).toFixed(3) : (localStorage.getItem('educare_med_threshold') || '0.35');
+        aimlResults.innerHTML = `<div style="font-size:13px">Model weights: [${wSummary}], bias: ${bias}</div><div style="font-size:13px;margin-top:8px">Selected thresholds — High: ${highT}, Medium: ${medT}</div>`;
       },100);
     });
 
@@ -1005,7 +1110,10 @@
       // per-item update races that can cause other pages to miss intermediate state.
       students.forEach(s=>{
         const prob = predictForStudent(model, s);
-        const risk = prob >= 0.5 ? 'High' : (prob >= 0.25 ? 'Medium' : 'Low');
+        // determine thresholds: prefer model thresholds, then stored thresholds, then defaults
+        const highThresh = model && model.thresholds && typeof model.thresholds.high !== 'undefined' ? Number(model.thresholds.high) : Number(localStorage.getItem('educare_high_threshold') || 0.6);
+        const medThresh = model && model.thresholds && typeof model.thresholds.med !== 'undefined' ? Number(model.thresholds.med) : Number(localStorage.getItem('educare_med_threshold') || 0.35);
+        const risk = prob >= highThresh ? 'High' : (prob >= medThresh ? 'Medium' : 'Low');
         rows.push({ id: s.id, name: s.name, prob: prob, risk });
       });
 
@@ -1204,6 +1312,162 @@
           aimlStatus.textContent = 'Server training failed: '+msg;
         }
       }
+    });
+
+    // Automated single-button prediction flow (server-first, fallback to local, fallback to rule-based)
+    const autoPredictBtn = document.getElementById('autoPredictBtn');
+    async function handleServerPredictionResponse(body, students){
+      let preds = body.predictions || body.prediction || body; // try common shapes
+      const rows = [];
+      const highThresh = Number(localStorage.getItem('educare_high_threshold') || 0.6);
+      const medThresh = Number(localStorage.getItem('educare_med_threshold') || 0.35);
+      if (Array.isArray(preds)){
+        if (preds.length === students.length && typeof preds[0] === 'number'){
+          for(let i=0;i<students.length;i++){
+            const prob = Number(preds[i]);
+            const risk = prob >= highThresh ? 'High' : (prob >= medThresh ? 'Medium' : 'Low');
+            EduCareAdmin.update('students', students[i].id, { risk, dropoutProb: prob });
+            rows.push({ id: students[i].id, name: students[i].name, prob, risk });
+          }
+        } else {
+          preds.forEach((p, idx)=>{
+            if (typeof p === 'number'){
+              const s = students[idx]; const prob = Number(p); const risk = prob >= highThresh ? 'High' : (prob >= medThresh ? 'Medium' : 'Low');
+              EduCareAdmin.update('students', students[idx].id, { risk, dropoutProb: prob }); rows.push({ id: students[idx].id, name: students[idx].name, prob, risk });
+            } else if (p && (p.id || p.studentId || typeof p.probability !== 'undefined' || typeof p.prob !== 'undefined' || typeof p.risk !== 'undefined')){
+              const id = p.id || p.studentId || students[idx].id;
+              let risk = p.risk || p.Risk || null;
+              let probHigh = Number(p.probHigh || p.probability || p.prob || p.score);
+              if (!isFinite(probHigh)) probHigh = NaN;
+              let prob = probHigh;
+              if (isNaN(prob)) prob = Number(p.prob || p.probability || p.score);
+              if (!isFinite(prob)) prob = NaN;
+              if ((risk || typeof risk === 'string') && isNaN(prob)){
+                const rlabel = String(risk || '').trim();
+                const map = { 'High': 0.9, 'Medium': 0.5, 'Low': 0.1 };
+                prob = map[rlabel] || 0;
+              }
+              if (isNaN(prob)) prob = 0;
+              const resolvedRisk = risk || (prob >= highThresh ? 'High' : (prob >= medThresh ? 'Medium' : 'Low'));
+              const dropoutProb = isFinite(Number(p.probHigh)) ? Number(p.probHigh) : Number(prob);
+              EduCareAdmin.update('students', id, { risk: resolvedRisk, dropoutProb: dropoutProb });
+              const s = students.find(x=>x.id===id) || students[idx];
+              rows.push({ id, name: s.name, prob, risk: resolvedRisk });
+            }
+          });
+        }
+      } else if (typeof preds === 'object'){
+        Object.keys(preds).forEach(id=>{
+          const prob = Number(preds[id]);
+          const s = students.find(x=>x.id===id);
+          const risk = prob >= 0.6 ? 'High' : (prob >= 0.35 ? 'Medium' : 'Low');
+          if (s) { EduCareAdmin.update('students', id, { risk, dropoutProb: prob }); rows.push({ id, name: s.name, prob, risk }); }
+        });
+      }
+      // render results
+      let html = `<div style="font-weight:600;margin-bottom:8px">Server predicted ${rows.length} students</div><table style="width:100%;border-collapse:collapse"><thead><tr><th>Name</th><th>Prob</th><th>Risk</th></tr></thead><tbody>`;
+      rows.forEach(r=> html += `<tr><td>${r.name||'-'}</td><td>${(typeof r.prob === 'number' ? (r.prob*100).toFixed(1) + '%' : '-')}</td><td>${r.risk||'-'}</td></tr>`);
+      html += `</tbody></table>`;
+      aimlResults.innerHTML = html;
+      aimlStatus.textContent = `Server prediction complete: ${rows.filter(r=>r.risk==='High').length} High risk`;
+      lastPredictions = rows;
+      try{ const s = EduCareAdmin.getStore(); if(s) EduCareAdmin.setStore(s); }catch(e){ console.warn('post-server-predict persistence failed', e); }
+      render();
+    }
+
+    autoPredictBtn.addEventListener('click', async ()=>{
+      aimlStatus.textContent = 'Starting automated prediction...';
+      const students = EduCareAdmin.list('students') || [];
+      if (!students.length){ showToast('No students to predict','error'); aimlStatus.textContent = 'No students to predict.'; return; }
+      const base = getApiBase();
+      // try server first
+      let serverReachable = false;
+      try{ const h = await fetch((base.endsWith('/')? base.slice(0,-1) : base) + '/health', { method: 'GET' , cache:'no-store'}); serverReachable = h.ok; }catch(e){ serverReachable = false; }
+
+      if (serverReachable){
+        aimlStatus.textContent = 'Server reachable — calling /predict';
+        try{
+          const payload = students.map(s=>({ id: s.id, Attendance: Number(s.attendance||0), CGPA: Number(s.cgpa||0), Stress: Number(s.stress||0) }));
+          const resp = await fetch((base.endsWith('/')? base.slice(0,-1) : base) + '/predict', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+          const body = await (resp.ok ? resp.json() : resp.json().catch(()=>({ error: 'non-json response', status: resp.status })));
+          if (resp.ok){ await handleServerPredictionResponse(body, students); return; }
+          // If server says model missing, attempt server-side training then retry
+          const errText = (body && body.error) ? String(body.error) : '';
+          if (resp.status === 500 || errText.toLowerCase().includes('model') || errText.toLowerCase().includes('metadata')){
+            aimlStatus.textContent = 'Server model missing — attempting to train server model automatically';
+            // prepare examples: persisted + labeled students
+            const examples = loadTrainingExamples() || [];
+            const studentsLabeled = EduCareAdmin.list('students') || [];
+            const labeled = studentsLabeled.map(s=>{
+              let label = null;
+              if (typeof s.dropped !== 'undefined') label = s.dropped ? 1 : 0;
+              if (label===null && typeof s.droppedOut !== 'undefined') label = s.droppedOut ? 1 : 0;
+              if (label===null && typeof s.actual_dropout !== 'undefined') label = s.actual_dropout ? 1 : 0;
+              if (label===null && s.risk){ const rl = String(s.risk).toLowerCase(); label = (rl === 'high' || rl === 'medium') ? 1 : 0; }
+              if (label===null) return null;
+              return { id: s.id, Attendance: Number(s.attendance||0), CGPA: Number(s.cgpa||0), Stress: Number(s.stress||0), label };
+            }).filter(Boolean);
+            const trainPayload = { examples: examples.concat(labeled) };
+            if (trainPayload.examples && trainPayload.examples.length >= 2){
+              try{
+                const tr = await fetch((base.endsWith('/')? base.slice(0,-1) : base) + '/train', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(trainPayload) });
+                if (tr.ok){ aimlStatus.textContent = 'Server training succeeded; retrying prediction...';
+                  const retry = await fetch((base.endsWith('/')? base.slice(0,-1) : base) + '/predict', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+                  if (retry.ok){ const rb = await retry.json(); await handleServerPredictionResponse(rb, students); return; }
+                } else {
+                  aimlStatus.textContent = 'Server training failed: '+tr.status; 
+                }
+              }catch(e){ aimlStatus.textContent = 'Server training attempt failed: '+(e.message||e); }
+            } else {
+              aimlStatus.textContent = 'Not enough labeled examples for server training — falling back to local prediction.';
+            }
+          }
+        }catch(err){ console.warn('Server predict failed', err); }
+      }
+
+      // Local fallback: try local model, train if needed, otherwise use heuristic
+      aimlStatus.textContent = 'Using local prediction (fallback)';
+      let localModel = loadModelFromStorage();
+      if(!localModel){
+        const {X,y} = collectTrainingData();
+        if (X && X.length >= 2){
+          aimlStatus.textContent = `Training local model on ${X.length} labeled examples...`;
+          const model = trainLogistic(X,y,{lr:0.3,epochs:800});
+          if (model){ saveModelToStorage(model); localModel = model; aimlStatus.textContent = 'Local training complete'; }
+        }
+      }
+
+      if (localModel){
+        aimlStatus.textContent = 'Running local model predictions...';
+        const rows = [];
+        const studentsList = students;
+        studentsList.forEach(s=>{
+          const prob = predictForStudent(localModel, s);
+          const risk = prob >= 0.5 ? 'High' : (prob >= 0.25 ? 'Medium' : 'Low');
+          rows.push({ id: s.id, name: s.name, prob, risk });
+        });
+        try{
+          const store = EduCareAdmin.getStore() || {};
+          store.users = store.users || {};
+          store.users.students = Array.isArray(store.users.students) ? store.users.students : [];
+          const studentsById = {}; store.users.students.forEach(st => { studentsById[String(st.id)] = st; });
+          rows.forEach(r => { const st = studentsById[String(r.id)]; if(st){ st.risk = r.risk; st.dropoutProb = Number(r.prob); } });
+          EduCareAdmin.setStore(store);
+        }catch(e){ console.warn('Failed to persist local predictions', e); }
+        let html = `<div style="font-weight:600;margin-bottom:8px">Local predicted ${rows.length} students</div><table style="width:100%;border-collapse:collapse"><thead><tr><th>Name</th><th>Prob</th><th>Risk</th></tr></thead><tbody>`;
+        rows.forEach(r=> html += `<tr><td>${r.name||'-'}</td><td>${(typeof r.prob === 'number' ? (r.prob*100).toFixed(1) + '%' : '-')}</td><td>${r.risk||'-'}</td></tr>`);
+        html += `</tbody></table>`;
+        aimlResults.innerHTML = html;
+        aimlStatus.textContent = `Local prediction complete: ${rows.filter(r=>r.risk==='High').length} High risk`;
+        lastPredictions = rows; render(); return;
+      }
+
+      // As last resort, use built-in rule-based engine
+      aimlStatus.textContent = 'No trained model available — applying rule-based fallback';
+      EduCareAdmin.runPredictionOnStudents();
+      aimlResults.innerHTML = `<div style="color:#6b7280">Applied rule-based predictions to students (fallback).</div>`;
+      aimlStatus.textContent = 'Fallback predictions applied';
+      render();
     });
 
     // Export last predictions as CSV

@@ -39,7 +39,9 @@ export const EduCareData = {
   },
   async sendMessage({ threadKey, text, fromRole, fromId }){
     // Messages are stored in sessions/messages in the local store if needed; simple add
-    return this.add('messages', { threadKey, text, fromRole, fromId, at: new Date().toISOString() });
+    // Store message under 'uploads' so getThread() (which reads s.uploads)
+    // will return the persisted messages consistently across the app.
+    return this.add('uploads', { threadKey, text, fromRole, fromId, at: new Date().toISOString() });
   },
   async getThread(threadKey){
     const s = window.EduCareAdmin ? window.EduCareAdmin.getStore() : null;
