@@ -26,41 +26,52 @@ This README documents project goals, architecture, local development, configurat
 ## Local development
 
 Prerequisites
-- Python 3.8+ (tested with 3.10+)
-- Node/npm is not required for the static site (it's vanilla JS).
-- A Google Firebase project if you plan to use Firestore sync.
+- Python 3.8+ (3.10+ recommended)
+- `git` and PowerShell for Windows convenience scripts
+- A Google Firebase project if you plan to use Firestore sync
 
 Install Python dependencies
 
-Open PowerShell in the repository root and run:
+From the repository root (PowerShell):
 
 ```powershell
-python -m pip install -r model/requirements.txt
+# create + activate venv (recommended)
+python -m venv .venv; .\.venv\Scripts\Activate.ps1
+pip install -r model/requirements.txt
 ```
 
-Start the static site
+Serve the static frontend
 
-You can serve the static files with any simple static server. For local dev the repo used a simple http server (host-independent). Example using Python's http.server (from repo root):
+The frontend is static HTML/CSS/JS. You can serve it with any static server. Example using Python's `http.server` (from repo root):
 
 ```powershell
 # serve static files at http://127.0.0.1:5501
 python -m http.server 5501
 ```
 
-Start the Flask model server
+Run the model API server (two common options)
 
-The Flask server provides `/health`, `/predict`, `/train`, `/chat`, `/model_info`, etc. Run it in a separate terminal:
+Option A — development (direct):
 
 ```powershell
-# optional: set AI key for server-side usage (recommended for production)
-$env:GEMINI_API_KEY = 'your_generative_api_key_here'
-$env:GEMINI_MODEL = 'models/text-bison-001'
-# start the model API
+# start the Flask app with the builtin runner (binds to 0.0.0.0:5000)
 python .\model\api.py
 ```
 
-Notes:
-- The Admin Settings includes a `Model Server Base URL` setting — set it to `http://127.0.0.1:5000` by default so the Admin UI queries the correct origin for model metadata and saved predictions.
+Option B — recommended for local testing on Windows: use the helper script `run_server.ps1`.
+This script creates/activates a virtual environment, installs `model/requirements.txt` if needed, and runs `model/server_no_reload.py` on `127.0.0.1:8000` by default.
+
+```powershell
+# from repo root
+.\run_server.ps1
+
+# override port (PowerShell):
+$env:EDUCARE_PORT = '9000'; .\run_server.ps1
+```
+
+Notes about ports and the Admin UI
+- The Admin UI `Model Server Base URL` setting should point to whichever API you started (e.g. `http://127.0.0.1:8000` when using `run_server.ps1`, or `http://127.0.0.1:5000` for `python model/api.py`).
+- `run_server.ps1` and `model/server_no_reload.py` default to port `8000` (designed to be convenient for local dev). The Flask debug runner in `model/api.py` defaults to `5000` when started directly.
 
 ---
 
@@ -71,47 +82,57 @@ Files:
 - `firebase/firestore-sync.js` — non-module adapter that mirrors the in-page canonical `EduCareAdmin` store into Firestore and applies remote changes back into the store.
 
 Configuration:
-- Add your Firebase Web app config into `firebase/firebase-init.js` (apiKey, authDomain, projectId, etc.). The local copy in the repo may already have a sample apiKey.
-- For server-side Firestore writes (predictions autosave), add a service account JSON at `firebase/serviceAccountKey.json` on the server host (this file is .gitignored).
+- Add your Firebase Web app config into `firebase/firebase-init.js` (apiKey, authDomain, projectId, etc.). The repo may contain a sample config — replace with your own app credentials.
+- For server-side Firestore writes (predictions autosave), place a service account JSON at `firebase/serviceAccountKey.json` on the server host (this file should be kept out of source control).
 
 Security notes:
-- The Web `apiKey` used by Firebase client SDKs is not a secret in the same way server secrets are, but restrict it by HTTP referrers in the Google Cloud Console to prevent abuse.
-- For production, configure Firestore Security Rules to limit who can read/write the collections.
+- The Firebase Web `apiKey` is safe for client SDK use but treat it like an application identifier: restrict it by HTTP referrers in the Google Cloud Console.
+- For production, lock down Firestore Security Rules so only authorized users can read/write sensitive collections.
 
 Migration UI:
-- Admin → Settings contains a migration card to preview and migrate the local `EduCareAdmin` store into Firestore. It downloads a local backup first and then upserts docs into Firestore.
+- Admin → Settings includes a migration helper to preview and migrate the local `EduCareAdmin` store into Firestore. It performs an upsert after downloading a local backup.
 
 ---
 
-## Chatbot (Gemini / aistudio integration)
+## Chatbot (Generative API integration)
 
 Design overview
 - Client widget: `assets/chatbot.js` + `assets/chatbot.css` — floating assistant UI included in main dashboards.
-- Server proxy: `model/api.py` `/chat` endpoint — takes JSON { messages, context } and calls the Generative API. The server prefers a server-side env var `GEMINI_API_KEY` but can accept an admin-provided key (convenience only).
+- Server proxy: `model/api.py` `/chat` endpoint — accepts `{ messages, context }` JSON and calls a configured generative provider (Google Generative Language / Gemini-style endpoints are supported in the server code).
 
-Admin controls
-- Admin → Settings now has a "Chatbot API Key (optional)" input. If you paste your aistudio (or other) key there, it will be stored in `store.meta.chatbotApiKey`. The chat client will include that key in the `/chat` payload, and the server will use it if present.
-- There is also a "Seed Chatbot with Project Details" button — it saves `/model_info` and `/predictions_saved` output into `store.meta.chatbotContext` so the assistant can reference model metadata and example predictions when replying.
+Server-side key storage
+- The server prefers a server-stored chat key. Use the admin endpoints to save/delete the key securely:
+  - `POST /admin/save_chat_key` with JSON `{ "key": "<provider_key>" }` — saves the key to `model/chat_key.enc` (optionally encrypted when `CHAT_KEY_ENC_KEY` is set).
+  - `POST /admin/delete_chat_key` — deletes the stored key.
+  - `GET /admin/chat_key_status` — returns `{ hasKey: true|false }`.
 
-Security caveat (important)
-- Storing API keys in the client store (`store.meta`) is convenient for testing but insecure for production. Anyone with access to the Admin UI or the persisted store (e.g., Firestore with lax rules) could read the key.
-- Recommended production practice: set `GEMINI_API_KEY` and `GEMINI_MODEL` on the server host (environment variables) and do not store keys client-side.
+Admin controls & client-side key (testing only)
+- The Admin UI provides a convenience input to store a chatbot key in client-side `store.meta` for quick testing, but this is insecure for production and should only be used for local experiments.
 
-How to test the chat locally
-1. Start the Flask server and set `GEMINI_API_KEY` if you want the server to use it.
-2. Open Admin → Settings and set `Model Server Base URL` to `http://127.0.0.1:5000` (if your static UI is on 5501).
-3. Optionally paste your aistudio key into Chatbot API Key and click Save (quick test mode).
-4. Seed project details (optional) and open any dashboard. Click the chat toggle and send a message.
+Environment variables the server honors
+- `GEMINI_API_KEY`, `GOOGLE_API_KEY` — provider API key fallback
+- `GEMINI_MODEL`, `GOOGLE_GEN_MODEL` — model name (e.g. `models/chat-bison-001`)
+- `GEMINI_TEMPERATURE`, `GEMINI_MAX_TOKENS` — generation parameters
+- `CHAT_KEY_ENC_KEY` — base64 Fernet key used to encrypt the saved chat key on disk
+- `EDUCARE_ENABLE_FIRESTORE` — when set to true (1/yes), the server will attempt to initialize `firebase_admin` if `firebase/serviceAccountKey.json` exists
+- `EDUCARE_API_KEY` — simple API key required for `/upload` when set (sent via `x-api-key` header)
+- `EDUCARE_ADMIN_API_KEY` — required header `x-admin-api-key` when set, used to protect admin endpoints like `save_chat_key`
+
+How to test chat locally
+1. Start the model API (see above). If you use `run_server.ps1`, the default base URL will be `http://127.0.0.1:8000`.
+2. Set the Admin `Model Server Base URL` to your API base.
+3. Use the admin endpoints to store the chat key on the server, or set `GEMINI_API_KEY` in the environment before starting the server.
+4. Open a dashboard and toggle the chatbot to send messages.
 
 ---
 
 ## Model training & predictions
 
-- `model/train_model.py` contains the logic used to train a RandomForest pipeline and save `model.joblib` plus `feature_columns.json` metadata.
-- The server `/train` endpoint accepts example lists and will train & persist the model. The `/predict` endpoint accepts a single object or list and returns risk predictions.
-- Predictions are attempted to be saved to Firestore when a server-side service account is available; otherwise they are appended to `model/model_job/predictions_saved.jsonl`.
+- `model/train_model.py` contains a CLI training helper that reads a labeled CSV/XLSX and writes `model.joblib` + `feature_columns.json` into `model/model_job/`.
+- The server exposes `POST /train` to accept example payloads and train a model programmatically.
+- `POST /predict` accepts a single object or an array of objects and returns predictions; add query `?save=1` or include `{ "save": true }` in the body to persist predictions (to Firestore when configured, otherwise to `model/model_job/predictions_saved.jsonl`).
 
-Basic train example (POST to /train):
+Example train request (HTTP POST to `/train`):
 
 ```json
 POST /train
@@ -119,6 +140,16 @@ POST /train
   "examples": [ { "Attendance": 85, "CGPA": 7.2, "Stress": 3, "label": "Low" }, ... ]
 }
 ```
+
+Example predict request (single row):
+
+```powershell
+curl -X POST http://127.0.0.1:8000/predict -H "Content-Type: application/json" -d '{"Attendance":65,"CGPA":5.5,"Stress":6}'
+```
+
+Notes
+- `model/api.py` expects model artifacts in `model/model_job/` (`model.joblib` and `feature_columns.json`). Use `train_model.py` or the `/train` endpoint to produce them.
+- The server attempts to compute probabilities if the trained model implements `predict_proba` and will include `prob`/`probHigh` in the returned objects where possible.
 
 ---
 
@@ -142,9 +173,21 @@ Chatbot doesn't answer or returns raw provider error:
 
 ## Deployment notes
 
-- For production, run the Flask app behind a WSGI server (gunicorn/uWSGI) and reverse-proxy with Nginx. The `deploy/` folder contains example systemd and nginx snippets.
-- Keep secrets (service account JSON, GEMINI API keys) on the server and out of source control. `firebase/serviceAccountKey.json` is gitignored.
-- Configure Firestore Security Rules and restrict Firebase Web API key by HTTP referrers.
+- The `deploy/` folder contains a `Dockerfile.api`, `docker-compose.yml` and an example `nginx` configuration that runs the Python API under Gunicorn and serves the static frontend via nginx.
+- Build & run with Docker Compose on a Linux server:
+
+```bash
+cd deploy
+docker compose up --build -d
+```
+
+- If your deployment should write to Firestore, mount or copy `firebase/serviceAccountKey.json` into the `api` container (see `deploy/README.md` for an example `volumes` snippet).
+- Keep server secrets out of repo: use environment variables for `GEMINI_API_KEY`, `EDUCARE_API_KEY`, `CHAT_KEY_ENC_KEY`, etc.
+
+Production checklist
+- Serve the frontend with TLS (HTTPS) and a TLS-terminating reverse proxy (nginx/Cloud Load Balancer).
+- Configure Firestore Security Rules to limit access.
+- Avoid storing provider keys in client-side settings; save them server-side via `/admin/save_chat_key` and protect the endpoint with `EDUCARE_ADMIN_API_KEY`.
 
 ---
 
@@ -155,9 +198,10 @@ Chatbot doesn't answer or returns raw provider error:
 - Add automated tests and a small CI for linting and API smoke tests.
 
 If you'd like, I can:
-- Implement server-side secure storage for the Admin-entered chatbot key (recommended), or
-- Add a diagnostics page to Admin Settings that pings the model server and displays raw responses for quick debugging.
+- Implement a secure server-side storage flow for admin-entered chatbot keys (recommended),
+- Add a diagnostics page to Admin Settings that pings the model server and displays raw responses for quick debugging,
+- Or create a sample `docker-compose.override.yml` for easier local development with Docker.
 
 ---
 
-Thank you for using EduCare Prototype — open issues or tell me which area to harden next (chat key storage, Firestore rules, or model fine-tuning).
+Thank you for using EduCare Prototype — open an issue or tell me which area to harden next (chat key storage, Firestore rules, or model fine-tuning).
