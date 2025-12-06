@@ -78,50 +78,37 @@
   }
 
   // ---------- Risk Engine (prototype) ----------
-  // Refined rule-based scoring with balanced logic:
-  // - Low attendance + High CGPA => moderate risk (student may lack engagement but academically sound)
-  // - High attendance (≥75%) + Low CGPA => risk capped at Medium (engaged but struggling)
-  // - Low attendance + Low CGPA => highest risk (disengaged and failing)
+  // Weighted scoring model: 35% attendance + 40% CGPA + 25% stress = 100%
+  // Each factor normalized to 0-100 scale, then weighted and combined
   function computeRisk({ attendance, cgpa, stress }) {
     const att = Number(attendance) || 0;
     const gpa = Number(cgpa) || 0;
     const st = Number(stress) || 0;
     
-    let score = 0;
-    let attendancePenalty = 0, cgpaPenalty = 0, stressPenalty = 0;
+    // Normalize each factor to 0-100 risk scale (0 = no risk, 100 = maximum risk)
+    // Attendance: lower is riskier (0% = 100 risk, 100% = 0 risk)
+    const attRisk = Math.max(0, Math.min(100, (100 - att)));
     
-    // Attendance scoring
-    if (att < 60) attendancePenalty = 50;
-    else if (att < 75) attendancePenalty = 25;
-    else if (att < 85) attendancePenalty = 10;
+    // CGPA: lower is riskier (0.0 = 100 risk, 10.0 = 0 risk)
+    const gpaRisk = Math.max(0, Math.min(100, (10 - gpa) * 10));
     
-    // CGPA scoring
-    if (gpa < 5) cgpaPenalty = 45;
-    else if (gpa < 6) cgpaPenalty = 35;
-    else if (gpa < 6.5) cgpaPenalty = 20;
-    else if (gpa < 7) cgpaPenalty = 10;
+    // Stress: higher is riskier (0 = 0 risk, 10+ = 100 risk)
+    const stressRisk = Math.max(0, Math.min(100, st * 10));
     
-    // Stress scoring
-    if (st >= 8) stressPenalty = 25;
-    else if (st >= 7) stressPenalty = 18;
-    else if (st >= 5) stressPenalty = 10;
+    // Weighted combination: 35% attendance + 40% CGPA + 25% stress
+    const weightedRisk = (attRisk * 0.35) + (gpaRisk * 0.40) + (stressRisk * 0.25);
     
-    // Combined scoring with interaction logic
-    score = attendancePenalty + cgpaPenalty + stressPenalty;
+    // Normalize to 0-100 scale
+    const riskScore = Math.round(weightedRisk);
     
-    // Interaction: Low attendance + High CGPA => reduce risk (academically capable, just disengaged)
-    if (att < 75 && gpa >= 7) {
-      score = Math.max(25, score - 20); // moderate risk, not high
-    }
+    console.debug(
+      `[Risk Calc] att=${att}% (risk=${attRisk.toFixed(1)}), gpa=${gpa} (risk=${gpaRisk.toFixed(1)}), stress=${st} (risk=${stressRisk.toFixed(1)}) ` +
+      `=> weighted=${weightedRisk.toFixed(1)} => final_score=${riskScore}`
+    );
     
-    // Interaction: Attendance ≥75% => cap risk at Medium (student is engaged, capped below 50%)
-    if (att >= 75) {
-      score = Math.min(49, score); // cap at 49 so max is Medium (49%), not High
-    }
-    
-    // Classification
-    if (score >= 65) return 'High';
-    if (score >= 35) return 'Medium';
+    // Classification: 0-33 = Low, 34-66 = Medium, 67-100 = High
+    if (riskScore >= 67) return 'High';
+    if (riskScore >= 34) return 'Medium';
     return 'Low';
   }
 
