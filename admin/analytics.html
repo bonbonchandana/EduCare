@@ -67,6 +67,27 @@
       <canvas id="performanceChart"></canvas>
     </div>
 
+    <div class="chartBox">
+      <h3>Student-level Metrics (Attendance · CGPA · Stress)</h3>
+      <div style="overflow-x:auto;padding-top:6px">
+        <div style="min-width:900px;display:flex;gap:18px;align-items:flex-start">
+          <div style="flex:1;min-width:280px">
+            <h4 style="margin:6px 0">Attendance (%)</h4>
+            <canvas id="attendanceChart"></canvas>
+          </div>
+          <div style="flex:1;min-width:280px">
+            <h4 style="margin:6px 0">CGPA (0-10 → %)</h4>
+            <canvas id="cgpaChart"></canvas>
+          </div>
+          <div style="flex:1;min-width:280px">
+            <h4 style="margin:6px 0">Stress (0-10 → %)</h4>
+            <canvas id="stressChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <p style="color:#6b7280;margin-top:8px;font-size:13px">Student names are shown on the horizontal axis; hover to see exact values.</p>
+    </div>
+
     <div style="text-align:right">
       <button id="exportBtn">Download PDF Report</button>
     </div>
@@ -104,6 +125,53 @@
       },
       options:{plugins:{legend:{position:'bottom'}}}
     });
+
+    // --- Student-level Charts (Attendance, CGPA, Stress) ---
+    function buildStudentCharts(){
+      const students = EduCareAdmin.list('students') || [];
+      const labels = students.map(s => s.name || s.pin || s.id);
+      const attendanceData = students.map(s => Number(s.attendance || 0));
+      // convert CGPA (0-10) to percentage for display
+      const cgpaData = students.map(s => {
+        const g = Number(s.cgpa || 0);
+        return Math.round((g/10) * 100 * 10) / 10; // one decimal
+      });
+      // stress assumed 0-10, convert to percentage
+      const stressData = students.map(s => Math.round((Number(s.stress||0)/10) * 100 * 10)/10);
+
+      // destroy existing charts if present to avoid duplicates
+      if(window._attendanceChart) try{ window._attendanceChart.destroy(); }catch(e){}
+      if(window._cgpaChart) try{ window._cgpaChart.destroy(); }catch(e){}
+      if(window._stressChart) try{ window._stressChart.destroy(); }catch(e){}
+
+      const attCtx = document.getElementById('attendanceChart');
+      window._attendanceChart = new Chart(attCtx, {
+        type: 'bar',
+        data: { labels, datasets:[{ label:'Attendance %', data: attendanceData, backgroundColor:'#10b981' }] },
+        options: { responsive:true, plugins:{legend:{display:false}}, scales:{ y: { beginAtZero:true, max:100 } } }
+      });
+
+      const gCtx = document.getElementById('cgpaChart');
+      window._cgpaChart = new Chart(gCtx, {
+        type: 'bar',
+        data: { labels, datasets:[{ label:'CGPA (%)', data: cgpaData, backgroundColor:'#7b2ff7' }] },
+        options: { responsive:true, plugins:{legend:{display:false}}, scales:{ y: { beginAtZero:true, max:100 } } }
+      });
+
+      const sCtx = document.getElementById('stressChart');
+      window._stressChart = new Chart(sCtx, {
+        type: 'bar',
+        data: { labels, datasets:[{ label:'Stress (%)', data: stressData, backgroundColor:'#f59e0b' }] },
+        options: { responsive:true, plugins:{legend:{display:false}}, scales:{ y: { beginAtZero:true, max:100 } } }
+      });
+    }
+
+    // Build on load
+    buildStudentCharts();
+    // Rebuild when store updates
+    if(typeof EduCareAdmin !== 'undefined' && typeof EduCareAdmin.onStoreUpdated === 'function'){
+      EduCareAdmin.onStoreUpdated(()=>{ try{ buildStudentCharts(); }catch(e){console.warn('rebuild student charts failed', e);} });
+    }
 
     // --- Export PDF ---
     document.getElementById('exportBtn').addEventListener('click', ()=>{
