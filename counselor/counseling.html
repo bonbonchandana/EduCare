@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduCare | Counselor • Counseling & Feedback</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/patel-light-theme.css" />
   <link rel="stylesheet" href="counselor-sidebar.css" />
   <script type="module" src="../admin/educare-data-firebase.js"></script>
   <script type="module" src="../firebase/firebase-init.js"></script>
@@ -299,9 +300,29 @@
           <label for="manageOutcome">Outcome</label>
           <textarea id="manageOutcome" rows="3" placeholder="Add outcome for this session"></textarea>
         </div>
+        <div class="field" style="display:flex;gap:8px">
+          <div style="flex:1">
+            <label for="manageInternalMarks">Internal Marks (0-100)</label>
+            <input id="manageInternalMarks" type="number" min="0" max="100" placeholder="Internal marks" />
+          </div>
+          <div style="flex:1">
+            <label for="manageExternalMarks">External Marks (0-100)</label>
+            <input id="manageExternalMarks" type="number" min="0" max="100" placeholder="External marks" />
+          </div>
+        </div>
+        <div class="field" style="display:flex;gap:8px">
+          <div style="flex:1">
+            <label for="manageAssignmentsCompleted">Assignments Completed</label>
+            <input id="manageAssignmentsCompleted" type="number" min="0" placeholder="Completed" />
+          </div>
+          <div style="flex:1">
+            <label for="manageTotalAssignments">Total Assignments</label>
+            <input id="manageTotalAssignments" type="number" min="0" placeholder="Total" />
+          </div>
+        </div>
         <div class="field">
-          <label for="manageMarks">Marks (optional)</label>
-          <input id="manageMarks" type="number" min="0" placeholder="Enter marks for this session" />
+          <label for="manageFeedbackScore">Feedback score (0.0 - 1.0, optional)</label>
+          <input id="manageFeedbackScore" type="number" min="0" max="1" step="0.01" placeholder="0.75" />
         </div>
         <div class="field">
           <label>Assignments & Student Replies</label>
@@ -327,7 +348,11 @@
     const manageComplete = document.getElementById('manageComplete');
     const manageSessionSelect = document.getElementById('manageSessionSelect');
   const manageOutcome = document.getElementById('manageOutcome');
-  const manageMarks = document.getElementById('manageMarks');
+  const manageInternalMarks = document.getElementById('manageInternalMarks');
+  const manageExternalMarks = document.getElementById('manageExternalMarks');
+  const manageAssignmentsCompleted = document.getElementById('manageAssignmentsCompleted');
+  const manageTotalAssignments = document.getElementById('manageTotalAssignments');
+  const manageFeedbackScore = document.getElementById('manageFeedbackScore');
   const manageAssignmentsList = document.getElementById('manageAssignmentsList');
     const manageNoteFile = document.getElementById('manageNoteFile');
 
@@ -350,7 +375,11 @@
       if(sid){
         const s = (EduCareAdmin.getStore().sessions||[]).find(x=>x.id===sid) || {};
         manageOutcome.value = s.outcome || '';
-        manageMarks.value = s.marks || '';
+        manageInternalMarks.value = typeof s.internalMarks !== 'undefined' ? s.internalMarks : '';
+        manageExternalMarks.value = typeof s.externalMarks !== 'undefined' ? s.externalMarks : '';
+        manageAssignmentsCompleted.value = typeof s.assignmentsCompleted !== 'undefined' ? s.assignmentsCompleted : '';
+        manageTotalAssignments.value = typeof s.totalAssignments !== 'undefined' ? s.totalAssignments : '';
+        manageFeedbackScore.value = typeof s.feedbackScore !== 'undefined' ? s.feedbackScore : '';
         renderManageAssignments();
       } else {
         manageAssignmentsList.innerHTML = '<div style="color:#6b7280">No session selected</div>';
@@ -380,7 +409,11 @@
       const sid = manageSessionSelect.value;
       const s = (EduCareAdmin.getStore().sessions||[]).find(x=>x.id===sid) || {};
       manageOutcome.value = s.outcome || '';
-      manageMarks.value = s.marks || '';
+      manageInternalMarks.value = typeof s.internalMarks !== 'undefined' ? s.internalMarks : '';
+      manageExternalMarks.value = typeof s.externalMarks !== 'undefined' ? s.externalMarks : '';
+      manageAssignmentsCompleted.value = typeof s.assignmentsCompleted !== 'undefined' ? s.assignmentsCompleted : '';
+      manageTotalAssignments.value = typeof s.totalAssignments !== 'undefined' ? s.totalAssignments : '';
+      manageFeedbackScore.value = typeof s.feedbackScore !== 'undefined' ? s.feedbackScore : '';
       renderManageAssignments();
     });
 
@@ -580,9 +613,18 @@
       const idx = (store.sessions||[]).findIndex(x=>x.id===sid);
       if(idx===-1) return alert('Session not found');
       const outcomeText = manageOutcome.value.trim();
-      const marksVal = manageMarks.value ? parseInt(manageMarks.value,10) : null;
+      const internalVal = manageInternalMarks.value ? parseInt(manageInternalMarks.value,10) : null;
+      const externalVal = manageExternalMarks.value ? parseInt(manageExternalMarks.value,10) : null;
+      const assignmentsCompletedVal = manageAssignmentsCompleted.value ? parseInt(manageAssignmentsCompleted.value,10) : null;
+      const totalAssignmentsVal = manageTotalAssignments.value ? parseInt(manageTotalAssignments.value,10) : null;
+      const feedbackVal = manageFeedbackScore.value ? parseFloat(manageFeedbackScore.value) : null;
       store.sessions[idx].outcome = outcomeText;
-      if(marksVal !== null && !isNaN(marksVal)) store.sessions[idx].marks = marksVal;
+      if(internalVal !== null && !isNaN(internalVal)) store.sessions[idx].internalMarks = internalVal;
+      if(externalVal !== null && !isNaN(externalVal)) store.sessions[idx].externalMarks = externalVal;
+      if(assignmentsCompletedVal !== null && !isNaN(assignmentsCompletedVal)) store.sessions[idx].assignmentsCompleted = assignmentsCompletedVal;
+      if(totalAssignmentsVal !== null && !isNaN(totalAssignmentsVal)) store.sessions[idx].totalAssignments = totalAssignmentsVal;
+      if(feedbackVal !== null && !isNaN(feedbackVal)) store.sessions[idx].feedbackScore = feedbackVal;
+      store.sessions[idx].updatedAt = new Date().toISOString();
       store.sessions[idx].updatedAt = new Date().toISOString();
 
       // handle counselor-uploaded note document (optional)

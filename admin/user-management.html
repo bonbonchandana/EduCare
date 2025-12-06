@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduCare | Admin • User Management</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/patel-light-theme.css" />
   <!-- Load Firebase + data layer FIRST -->
   <script>
     // Local-only helper functions (use EduCareAdmin local store)
@@ -52,7 +53,13 @@
     .btn{padding:8px 12px;border:none;border-radius:10px;background:linear-gradient(135deg,#7b2ff7,#f107a3);color:#fff;cursor:pointer;font-size:13px}
     .btn.secondary{background:#e5e7eb;color:#111}
     .search{padding:8px 12px;border:1px solid #e5e7eb;border-radius:10px;min-width:220px}
-    table{width:100%;border-collapse:separate;border-spacing:0 10px}
+    .tableWrap{overflow-x:auto}
+    table{width:100%;border-collapse:separate;border-spacing:0 10px;table-layout:fixed}
+    /* Ensure Dropout % column remains visible and compact (now at 2nd column) */
+    thead th:nth-child(2), tbody td:nth-child(2){ width:110px; text-align:center; white-space:nowrap }
+    /* Make the Dropout column sticky so it stays visible during horizontal scroll */
+    thead th:nth-child(2){ position: -webkit-sticky; position: sticky; left: 0; top: 0; z-index: 6; background: linear-gradient(180deg,#fafafa,#fff); }
+    tbody td:nth-child(2){ position: -webkit-sticky; position: sticky; left: 0; z-index: 4; background: #fff; box-shadow: 4px 0 6px -4px rgba(0,0,0,0.12); }
     th,td{text-align:left;padding:12px}
     th{color:#374151;font-size:13px}
     tbody tr{background:var(--card);box-shadow:0 6px 18px rgba(0,0,0,.08)}
@@ -110,10 +117,12 @@
       <button class="btn secondary" id="refreshBtn">Refresh</button>
     </div>
 
-    <table>
-      <thead id="thead"></thead>
-      <tbody id="tbody"></tbody>
-    </table>
+    <div class="tableWrap">
+      <table>
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
   </main>
 
   <!-- Create/Edit Modal -->
@@ -208,8 +217,8 @@
     const columns = {
       students: [
         { key:'name', label:'Name' },
-        { key:'pin', label:'PIN' },
         { key:'dropoutProb', label:'Dropout %' },
+        { key:'pin', label:'PIN' },
         { key:'email', label:'Email' },
         { key:'mobile', label:'Mobile' },
         { key:'branch', label:'Branch' },
@@ -255,6 +264,12 @@
         const s = JSON.stringify(item).toLowerCase();
         return s.includes(q);
       });
+      // Debug: log dropout-related fields for first few filtered students
+      try{
+        if(filtered && filtered.length){
+          console.debug('dropout debug', filtered.slice(0,6).map(s=>({ id: s.id, name: s.name, dropoutProb: s.dropoutProb, prob: s.prob, probability: s.probability, probHigh: s.probHigh, prediction: s.prediction, dropped: s.dropped, droppedOut: s.droppedOut, actual_dropout: s.actual_dropout, risk: s.risk })));
+        }
+      }catch(e){ /* ignore debug errors */ }
 
       // body
       $tbody.innerHTML = filtered.map(item => {
@@ -268,8 +283,26 @@
           let val = item[c.key];
           if (role==='students'){
             if (c.key==='dropoutProb'){
-              const p = item.dropoutProb;
-              return `<td>${(typeof p==='number') ? (p*100).toFixed(1)+'%' : '-'}</td>`;
+              // Normalize multiple possible dropout representations into a probability (0..1) for display
+              let p = null;
+              let src = '-';
+              // numeric fields (common)
+              const numericFields = ['dropoutProb','prob','probability','probHigh','probabilityHigh','probability_of_dropout','score'];
+              for(const k of numericFields){ if (typeof item[k] === 'number' && isFinite(item[k])){ p = Number(item[k]); src = k; break; } }
+              // sometimes stored as string numeric
+              if (p===null){ for(const k of numericFields){ if (typeof item[k] === 'string' && item[k].trim() !== ''){ const v = Number(item[k]); if (!isNaN(v)){ p = v; src = k; break; } } } }
+              // legacy boolean flags
+              if (p===null){ if (typeof item.dropped !== 'undefined'){ p = item.dropped ? 1 : 0; src = 'dropped'; } else if (typeof item.droppedOut !== 'undefined'){ p = item.droppedOut ? 1 : 0; src = 'droppedOut'; } else if (typeof item.actual_dropout !== 'undefined'){ p = item.actual_dropout ? 1 : 0; src = 'actual_dropout'; } }
+              // some server responses embed prediction object
+              if (p===null && item.prediction && typeof item.prediction.probability === 'number'){ p = Number(item.prediction.probability); src = 'prediction.probability'; }
+              // If numeric probability found, normalize and render as percent
+              if (typeof p === 'number' && isFinite(p)){
+                if (p > 1) p = p/100; // assume percent if given as 0-100
+                return `<td title="source: ${src}">${(p*100).toFixed(1)}%</td>`;
+              }
+              // If there's a risk label but no explicit numeric prob, show the risk chip (matches other modules)
+              if (item.risk){ return `<td>${chipRisk(item.risk)}</td>`; }
+              return `<td>-</td>`;
             }
             if (c.key==='risk') return `<td>${chipRisk(item.risk)}</td>`;
             if (c.key==='improvement') return `<td>${(typeof item.improvement === 'number') ? item.improvement.toFixed(2) : '-'}</td>`;
@@ -796,6 +829,18 @@
     // Initial
     render();
     EduCareAdmin.onStoreUpdated(render);
+    // If no students have a dropoutProb yet (seeded data), run the prototype prediction once
+    (function ensureDropoutProb(){
+      try{
+        const students = EduCareAdmin.list('students') || [];
+        if(students.length && !students.some(s => typeof s.dropoutProb === 'number')){
+          // run rule-based prediction to populate dropoutProb and risk for initial view
+          EduCareAdmin.runPredictionOnStudents();
+          // re-render after the store update (small delay to ensure listeners processed)
+          setTimeout(render, 50);
+        }
+      }catch(e){ console.warn('ensureDropoutProb failed', e); }
+    })();
     // --- AIML training & prediction logic ---
     const aimlBtn = document.getElementById('aimlBtn');
     const aimlModal = document.getElementById('aimlModal');

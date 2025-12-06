@@ -196,10 +196,117 @@
   // ---------- Sessions ----------
   function addSession({ studentId, counselorId, date = todayISO(), notes = '', outcome = '' }) {
     const s = ensureStore();
+    // session may optionally include these fields to drive automatic improvement calculation:
+    // { feedbackScore: 0..1, internalMarks: 0..100, externalMarks: 0..100, assignmentsCompleted: number, totalAssignments: number }
     const session = { id: 'sess_' + uid(), studentId, counselorId, date, notes, outcome };
+    // copy optional fields if present
+    try{
+      ['feedbackScore','internalMarks','externalMarks','assignmentsCompleted','totalAssignments'].forEach(k=>{
+        if(arguments[0] && typeof arguments[0][k] !== 'undefined') session[k] = arguments[0][k];
+      });
+    }catch(e){ /* ignore */ }
     s.sessions.push(session);
     setStore(s);
+    // After persisting session, attempt to update the student's improvement metric
+    try{
+      _updateImprovementFromSession(studentId, session);
+    }catch(e){ console.warn('update improvement after session failed', e); }
     return session;
+  }
+
+  // Compute an improvement delta from a session and apply it to the student record.
+  // This is a lightweight heuristic combining marks change, assignment completion and session feedback.
+  function _updateImprovementFromSession(studentId, session){
+    try{
+      const s = ensureStore();
+      const student = s.users.students.find(x => x.id === studentId);
+      if(!student) return false;
+
+      // previous baseline values stored on student (best-effort fallbacks)
+      const prevInternal = Number(student.prevInternalMarks ?? student.internalMarks ?? 0);
+      const prevExternal = Number(student.prevExternalMarks ?? student.externalMarks ?? 0);
+      const prevAssignRatio = (()=>{ try{ const a=Number(student.prevAssignmentRatio); if(!isFinite(a)) return (Number(student.assignmentsCompleted||0) / Math.max(1, Number(student.totalAssignments||1))); return a;}catch{return 0;} })();
+
+      // session-provided values (may be undefined)
+      const newInternal = (typeof session.internalMarks !== 'undefined') ? Number(session.internalMarks) : (Number(student.internalMarks) || prevInternal);
+      const newExternal = (typeof session.externalMarks !== 'undefined') ? Number(session.externalMarks) : (Number(student.externalMarks) || prevExternal);
+      const newAssignRatio = (typeof session.assignmentsCompleted !== 'undefined' || typeof session.totalAssignments !== 'undefined') ? (Number(session.assignmentsCompleted||0) / Math.max(1, Number(session.totalAssignments|| (student.totalAssignments||1)))) : (Number(student.assignmentsCompleted||0) / Math.max(1, Number(student.totalAssignments||1)));
+      const feedback = (typeof session.feedbackScore !== 'undefined') ? Number(session.feedbackScore) : (typeof session.outcome === 'string' && session.outcome.toLowerCase().includes('improved') ? 0.8 : 0.5);
+
+      // Normalized deltas
+      const marksPrevAvg = (prevInternal + prevExternal) / 2.0;
+      const marksNewAvg = (newInternal + newExternal) / 2.0;
+      const marksDelta = (marksNewAvg - marksPrevAvg) / 10.0; // 10% mark change -> ~1 unit
+
+      const assignDelta = (newAssignRatio - prevAssignRatio) * 5.0; // full improvement in assignment completion -> ~5 units
+
+      const feedbackDelta = (feedback - 0.5) * 4.0; // centered around 0.5
+
+      // weighted combination (weights tuned for prototype behavior)
+      const wMarks = 0.6, wAssign = 0.25, wFeedback = 0.15;
+      const improvementDelta = (marksDelta * wMarks) + (assignDelta * wAssign) + (feedbackDelta * wFeedback);
+
+      // apply to student's improvement (initialize if missing)
+      const prevImprovement = Number(student.improvement || 0);
+      let newImprovement = prevImprovement + improvementDelta;
+
+      // clamp to reasonable prototype bounds
+      if(!isFinite(newImprovement)) newImprovement = prevImprovement;
+      // persist updated baseline marks and assignments for future diffs
+      student.prevInternalMarks = newInternal;
+      student.prevExternalMarks = newExternal;
+      student.prevAssignmentRatio = newAssignRatio;
+      student.internalMarks = newInternal;
+      student.externalMarks = newExternal;
+      student.assignmentsCompleted = Number(session.assignmentsCompleted || student.assignmentsCompleted || 0);
+      student.totalAssignments = Number(session.totalAssignments || student.totalAssignments || 0) || student.totalAssignments || 0;
+      student.improvement = Number(newImprovement);
+
+      // attach feedback to session record (persisted in store already)
+      const sessIdx = s.sessions.findIndex(x=> x.id === session.id);
+      if(sessIdx !== -1){ s.sessions[sessIdx] = { ...s.sessions[sessIdx], feedbackScore: feedback }; }
+
+      setStore(s);
+      return true;
+    }catch(e){ console.warn('compute improvement failed', e); return false; }
+  }
+
+  // Recompute improvement for a student by applying all sessions in chronological order
+  function recomputeImprovementForStudent(studentId){
+    try{
+      const s = ensureStore();
+      const student = s.users.students.find(x => x.id === studentId);
+      if(!student) return false;
+      // reset baseline to earliest available recorded marks on student
+      let baselineInternal = Number(student.initialInternalMarks ?? student.internalMarks ?? 0);
+      let baselineExternal = Number(student.initialExternalMarks ?? student.externalMarks ?? 0);
+      let baselineAssignRatio = (Number(student.initialAssignmentRatio) || (Number(student.assignmentsCompleted||0) / Math.max(1, Number(student.totalAssignments||1))));
+      // reset improvement
+      student.improvement = 0;
+      // iterate sessions for this student in date order
+      const sessions = (s.sessions || []).filter(se => se.studentId === studentId).sort((a,b)=> new Date(a.date) - new Date(b.date));
+      sessions.forEach(se => {
+        // for each session, compute delta using stored baseline then update baseline to session values
+        const sessInternal = typeof se.internalMarks !== 'undefined' ? Number(se.internalMarks) : baselineInternal;
+        const sessExternal = typeof se.externalMarks !== 'undefined' ? Number(se.externalMarks) : baselineExternal;
+        const sessAssignRatio = (typeof se.assignmentsCompleted !== 'undefined' || typeof se.totalAssignments !== 'undefined') ? (Number(se.assignmentsCompleted||0)/Math.max(1, Number(se.totalAssignments|| (student.totalAssignments||1)))) : baselineAssignRatio;
+        const feedback = typeof se.feedbackScore !== 'undefined' ? Number(se.feedbackScore) : (typeof se.outcome === 'string' && se.outcome.toLowerCase().includes('improved') ? 0.8 : 0.5);
+
+        const marksPrevAvg = (baselineInternal + baselineExternal) / 2.0;
+        const marksNewAvg = (sessInternal + sessExternal) / 2.0;
+        const marksDelta = (marksNewAvg - marksPrevAvg) / 10.0;
+        const assignDelta = (sessAssignRatio - baselineAssignRatio) * 5.0;
+        const feedbackDelta = (feedback - 0.5) * 4.0;
+        const improvementDelta = (marksDelta * 0.6) + (assignDelta * 0.25) + (feedbackDelta * 0.15);
+        student.improvement = Number((student.improvement || 0) + improvementDelta);
+        // update baselines
+        baselineInternal = sessInternal; baselineExternal = sessExternal; baselineAssignRatio = sessAssignRatio;
+      });
+      // persist final baseline values
+      student.prevInternalMarks = baselineInternal; student.prevExternalMarks = baselineExternal; student.prevAssignmentRatio = baselineAssignRatio;
+      setStore(s);
+      return true;
+    }catch(e){ console.warn('recompute improvement failed', e); return false; }
   }
 
   // ---------- Uploads & Prediction ----------
@@ -277,6 +384,8 @@
     linkParent, assignCounselor,
     // sessions
     addSession,
+    // improvement helpers
+    recomputeImprovementForStudent,
     // prediction
     computeRisk, runPredictionOnStudents, recordUpload,
     // analytics
