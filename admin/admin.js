@@ -79,7 +79,7 @@
 
   // ---------- Risk Engine (prototype) ----------
   // Weighted scoring model: 35% attendance + 40% CGPA + 25% stress = 100%
-  // Each factor normalized to 0-100 scale, then weighted and combined
+  // With severity interaction: when multiple critical factors are low, risk compounds
   function computeRisk({ attendance, cgpa, stress }) {
     const att = Number(attendance) || 0;
     const gpa = Number(cgpa) || 0;
@@ -96,14 +96,25 @@
     const stressRisk = Math.max(0, Math.min(100, st * 10));
     
     // Weighted combination: 35% attendance + 40% CGPA + 25% stress
-    const weightedRisk = (attRisk * 0.35) + (gpaRisk * 0.40) + (stressRisk * 0.25);
+    let riskScore = (attRisk * 0.35) + (gpaRisk * 0.40) + (stressRisk * 0.25);
     
-    // Normalize to 0-100 scale
-    const riskScore = Math.round(weightedRisk);
+    // Severity interaction: when both attendance AND CGPA are critically low, risk compounds
+    // Critical low: attendance < 60% AND CGPA < 5.5
+    if (att < 60 && gpa < 5.5) {
+      // Amplify risk by interaction factor (both major factors failing)
+      const interactionFactor = 1.2; // 20% amplification for dual criticality
+      riskScore = riskScore * interactionFactor;
+    }
+    // Also boost if attendance is extremely low (< 45%) regardless of CGPA
+    else if (att < 45) {
+      riskScore = riskScore * 1.15;
+    }
+    
+    riskScore = Math.round(riskScore);
     
     console.debug(
       `[Risk Calc] att=${att}% (risk=${attRisk.toFixed(1)}), gpa=${gpa} (risk=${gpaRisk.toFixed(1)}), stress=${st} (risk=${stressRisk.toFixed(1)}) ` +
-      `=> weighted=${weightedRisk.toFixed(1)} => final_score=${riskScore}`
+      `=> weighted=${riskScore}`
     );
     
     // Classification: 0-33 = Low, 34-66 = Medium, 67-100 = High
