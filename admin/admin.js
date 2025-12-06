@@ -78,19 +78,49 @@
   }
 
   // ---------- Risk Engine (prototype) ----------
-  // Simple rule-based scoring to simulate AI prediction
+  // Refined rule-based scoring with balanced logic:
+  // - Low attendance + High CGPA => moderate risk (student may lack engagement but academically sound)
+  // - High attendance (≥75%) + Low CGPA => risk capped at Medium (engaged but struggling)
+  // - Low attendance + Low CGPA => highest risk (disengaged and failing)
   function computeRisk({ attendance, cgpa, stress }) {
+    const att = Number(attendance) || 0;
+    const gpa = Number(cgpa) || 0;
+    const st = Number(stress) || 0;
+    
     let score = 0;
-    if (attendance < 60) score += 50;
-    else if (attendance < 75) score += 25;
-
-    if (cgpa < 6) score += 40;
-    else if (cgpa < 7) score += 20;
-
-    if (stress >= 7) score += 30;
-    else if (stress >= 5) score += 15;
-
-    if (score >= 70) return 'High';
+    let attendancePenalty = 0, cgpaPenalty = 0, stressPenalty = 0;
+    
+    // Attendance scoring
+    if (att < 60) attendancePenalty = 50;
+    else if (att < 75) attendancePenalty = 25;
+    else if (att < 85) attendancePenalty = 10;
+    
+    // CGPA scoring
+    if (gpa < 5) cgpaPenalty = 45;
+    else if (gpa < 6) cgpaPenalty = 35;
+    else if (gpa < 6.5) cgpaPenalty = 20;
+    else if (gpa < 7) cgpaPenalty = 10;
+    
+    // Stress scoring
+    if (st >= 8) stressPenalty = 25;
+    else if (st >= 7) stressPenalty = 18;
+    else if (st >= 5) stressPenalty = 10;
+    
+    // Combined scoring with interaction logic
+    score = attendancePenalty + cgpaPenalty + stressPenalty;
+    
+    // Interaction: Low attendance + High CGPA => reduce risk (academically capable, just disengaged)
+    if (att < 75 && gpa >= 7) {
+      score = Math.max(25, score - 20); // moderate risk, not high
+    }
+    
+    // Interaction: Attendance ≥75% => cap risk at Medium (student is engaged, capped below 50%)
+    if (att >= 75) {
+      score = Math.min(49, score); // cap at 49 so max is Medium (49%), not High
+    }
+    
+    // Classification
+    if (score >= 65) return 'High';
     if (score >= 35) return 'Medium';
     return 'Low';
   }
@@ -329,6 +359,10 @@
       st.risk = risk;
       // also expose a coarse dropout probability for UI purposes
       st.dropoutProb = risk === 'High' ? 0.9 : (risk === 'Medium' ? 0.5 : 0.1);
+      // DEBUG: log calculation for first few students
+      if(target.indexOf(st) < 3){
+        console.debug(`[Risk Calc] ${st.name}: attendance=${attendance}, cgpa=${cgpa}, stress=${stress} => risk=${risk}, dropoutProb=${st.dropoutProb}`);
+      }
     });
     setStore(s);
     return clone(target);
@@ -399,6 +433,14 @@
   window.EduCareAdmin = API;
   // Initialize immediately so first page load has data
   ensureStore();
+  
+  // DEBUG: expose risk calculation for console testing
+  window.testRisk = function(attendance, cgpa, stress) {
+    const risk = computeRisk({ attendance, cgpa, stress });
+    const dropoutProb = risk === 'High' ? 0.9 : (risk === 'Medium' ? 0.5 : 0.1);
+    console.log(`testRisk(att=${attendance}, gpa=${cgpa}, stress=${stress}) => risk=${risk}, dropoutProb=${(dropoutProb*100).toFixed(1)}%`);
+    return { risk, dropoutProb };
+  };
   // --- Data migration: ensure all users have a password field (helps when seed changed)
   (function ensurePasswords(){
     const s = getStore();
